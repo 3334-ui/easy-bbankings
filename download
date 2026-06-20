@@ -1,0 +1,4 @@
+node_modules/
+.env
+bank_cfg.json
+bank_state.json
