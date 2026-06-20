@@ -1,91 +1,199 @@
 <!DOCTYPE html>
 <html lang="fr">
- 
+
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin — Easy Banking</title>
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0,user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Easy Banking</title>
+    <link rel="apple-touch-icon" href="./favicon.png" />
+    <link rel="icon" href="./favicon.png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * {
-            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
             -webkit-font-smoothing: antialiased;
-            font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif
         }
- 
+
         html,
         body,
         #root {
+            height: 100%;
+            min-height: -webkit-fill-available;
+            width: 100%;
+            overflow: hidden;
+            background: #F2F2F7;
             margin: 0;
             padding: 0;
-            min-height: 100%;
-            background: #080b0f;
         }
- 
-        ::-webkit-scrollbar {
-            width: 4px;
+        @supports (height: 100dvh) {
+            html, body, #root { height: 100dvh; }
         }
- 
-        ::-webkit-scrollbar-thumb {
-            background: #1e2530;
-            border-radius: 2px;
+        .fixed { position: fixed; }
+        @media screen and (max-width: 360px) {
+            body { font-size: 14px; }
         }
- 
-        .fade-in {
-            animation: fadeIn .18s ease;
+
+        .scroll-ios {
+            -webkit-overflow-scrolling: touch;
+            overflow-y: auto
         }
- 
+
+        .press {
+            transition: opacity .12s, transform .12s
+        }
+
+        .press:active {
+            opacity: .55;
+            transform: scale(.95)
+        }
+
+        @keyframes slideR {
+            from {
+                transform: translateX(100%)
+            }
+
+            to {
+                transform: translateX(0)
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%)
+            }
+
+            to {
+                transform: translateY(0)
+            }
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
-                transform: translateY(5px);
+                transform: scale(.94)
             }
- 
+
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: scale(1)
             }
         }
- 
+
         @keyframes shake {
- 
+
             0%,
             100% {
                 transform: translateX(0)
             }
- 
+
             20%,
             60% {
                 transform: translateX(-8px)
             }
- 
+
             40%,
             80% {
                 transform: translateX(8px)
             }
         }
- 
-        input[type=number]::-webkit-inner-spin-button {
-            -webkit-appearance: none;
+
+        @keyframes loadBar {
+            from {
+                width: 0
+            }
+
+            to {
+                width: 100%
+            }
         }
- 
-        select option {
-            background: #0d1117;
+
+        @keyframes popIn {
+            0% {
+                transform: scale(.5);
+                opacity: 0
+            }
+
+            60% {
+                transform: scale(1.1)
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1
+            }
+        }
+
+        @keyframes checkDraw {
+            to {
+                stroke-dashoffset: 0
+            }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes ringIn {
+            from {
+                transform: scale(.3);
+                opacity: 0
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1
+            }
+        }
+
+        .screen-r {
+            animation: slideR .28s ease-out
+        }
+
+        .modal-up {
+            animation: slideUp .32s cubic-bezier(.34, 1.1, .64, 1)
+        }
+
+        .splash-in {
+            animation: fadeIn .6s ease
+        }
+
+        .safe-top {
+            padding-top: max(44px, env(safe-area-inset-top, 44px))
+        }
+
+        input[type=number]::-webkit-inner-spin-button {
+            -webkit-appearance: none
+        }
+
+        input {
+            outline: none;
+            background: transparent;
+            border: none;
+            width: 100%
+        }
+
+        ::-webkit-scrollbar {
+            display: none
         }
     </style>
 </head>
- 
+
 <body>
     <div id="root"></div>
     <script type="text/babel-source" id="app-source">
-        const { useState, useMemo, useEffect } = React;
- 
-        const ADMIN_AUTH_KEY = 'bnp_admin_token';
-        let adminToken = localStorage.getItem(ADMIN_AUTH_KEY) || '';
- 
+        const { useState, useEffect, useMemo } = React;
+        const HELLO_BANK_LOGO = "data:image/webp;base64,UklGRhRaAABXRUJQVlA4WAoAAAAYAAAAWwMAsQMAQUxQSC4aAAABHMVt20aW9t86aXH/I2ICstX1wLo3Mh6QjJazVCZVz2lPU6oCMnQIuBCKMl1oC0vtL+Fav5l2TUIS8n8LtLUd2xtd9/3GVm3btm3btm3bboPatm2bUd3G1vfc99WZ+T3ONYiICfBca3skSYMknRPLoDpYCA6CgWAkaUgeYnA3N1MRvM+zUHM3xQfIAPszj0fEBDhs20aS+m99Adu5lxExAWhaNwDWebGtj+v9zGcDRlMSRw/46rmbTth+ic4GwBwt1g3wGVY/46mvxjEpjckJ3zx11rozOWDeMqwC2q98xmvjSTIzUxcyM0ly8lunr9wBqKwFuKPjBn2+D2ZEJuUxMyIZ3/fbsBPMm8scWLXfEGapJWUyS0kOuXUNg1uzmGH2c39glKBYRkn+dOHcMGsWbPB6MgoFswT59qZVMxi6HD+EGUnJzEgOObUHrIkcM1w/hZGUzQyWO2ZF1SSO+R5nJqUzk88uCm8Cw1xPMyifhe8vDW+UYd5nGBTQwveXgDXCMPMTLKkgLHx+TljD0PkmRlJDg3f3QIMNx9eYlNE8G9YAx0a/MymjyeFbwOtxzP46g0IafGceeB3mOD+ZSpLJy2D2FxVW+55BKQ3+tA4qAIZO/RgU0+Bd3eCAY8MhijJqczgMHXuzRjmt8dbOMMPKgxh6EvxlLRjsdBYKauF5rYDpX1WV92cBVp+QqSiZUzaEn8VCSQ1eVHV5iqEqL0+32FdMTUn+sMo241SFnLLTcUyKavKcPspy3zPK8n8+0xX9v/0prP87Sln++p//+Z//+Z//+Z//+Z//+Z//+Z//+Z//+Z//+Z//+Z//+Z//+Z//+f+v//mf//n//2uZj3580KVtdGsb3/b2/6Zb++8+Hz/6ffz467+vcVAgdOP9vcCYkI23twIjirKM/L//+I//+I//+O+v//76j33I728K8nu+UYB5bKjtt0957Ch3AJhte2q/f2ofTcP3hsR9F/DLgLbd1i4du2xR8IUgWzPtewLQDPYm7sgFA3do9ie2wPcCTJp1W4ArBUKsnEbguwAErI2EiwQkYnVI4BsAERyR5wtEiKPyvPYAHBfg2gA4NoR1R8CxgSsTwOGBrDkAJ0guCoCTJEsuOEfgioAThbDawHnC9cDZJmstOFW4GDjhsM6C0+VKxDknrDHAGwOcNrDAwDnDJQBnTtYXThvOHzh5ZG2RzMsbRJOlJU6dc4eHCKys2XPmOAgN3zc4b+BhhjXFAQin7UhZU3gqy4BDuQ/HOEo4ZX7zgOMI5wu/fXg2u7jrh8iCYCEdLDlVHFZYednz6Z4BlBOV4zIsohTDtmvb2qdbkz1SLJwm8MDXEJYm2RG/iDQjhSrWMCig2T6NAoMICyiVMOCLCYE6cI5ghGDbnvZPn7YYhsgCwrqAnYEyXhQIaYpfRFsIlPP++Hl+QhXA/kAZOUNYHEjw5SRJPe6OD84OViXWJJThYkDA7hhquXoogxRRw0UgVk7EoqGULLFYmdTwBFGIYGFSytwbj22fesY7dE6PdQFrpxTcGieX1AiTysnBsoD1KeTqIs6ac5M6cUhSKKuGWINLhkURB4UywtIalQrmzFQlOC5UcdXEikwNzgtVgiOFKmHJQIWMoxTomi7WJDh2qghLxoLg3OCkQJHg4IR1RYk4NAV6hqsKjp8iLiqcHTknUORIYb3E/owm/YTzFiZBjYveHRaMw9HPUwLWcJKhBqyncAictThNWFEUII6fFPCE1IR5uOqYgPRLTggVwJlQwbBWWgWnQDc4HxyONVgs2D2TSDfhbIAFwblQwSyVFMA5htNlDSdbA1ZKQXLVqMAhZaWQAkzCfmlnI0ckFcxCkeNo9Hp5Mis4H9ZS+oGHGU4XEzIVzDppOY60bu1k4DFDhbZO+hOnCd1enWuvkBmZCte7N9LNMA37kXNBBY4qWSVp/Wa608udM0EKNOfMQiqYTATHjJUKTCoFrndv9JOJjBqrYmuTMgWySNjoN9V0SzsTFJBJpQCPVRK7c9XY+hFnTT9ZJBVb2jxDtxfHSoHHrNjpd7mHgcwTz1RJZiUFyP2w723qGST0O9icCCocebb74b0xdUfZT8bOedgL7JlW9jvmA0/ovp2MR87Dg37bvCggayQ5GTvnYS/QnFcKXO1H/MoZOcWp1uIj/rv9k+W//t9god/e/rnR0o0f7//cCAU+/sny9viOweMeaOlm+Jax3wOh39W+otcudj++4vhHS/v+sO+3xUa/R+ZFP7JGcl88CjSnnb1feyySdjJ2zkPzwCnAvkZO50fOQ8l9WiVZRhzqxpliWrQKV3sYto8j3T0R6TdvtgJZJOx0O4GpeBRobVLSj8cqif25aFIAJkX6ySIpedlK5rgud2/Q7/hjpRVgUrF/skrSutG4aFChzakVkFUC3cSLZgUzpVgQV0lFctVaBXJQbZ0k/bhqNZkQFMB1UhGuWkowIQu2lUKBXDVKZDqUYKFQ4PCTUUCYTSqwUgz9uNHAgnGlUCFXLRUMc8lysoBwzaQEcwEL4nLKVUsFwzcH+nnVqs4ELMhysSBcNIrwrcEUMFw0SgiTIJZcL1CAXDNDjcyCEuBqsYIwEeA8kRKzJJbMgpEChmkQw2mSKjAeoQS4YFLBaRAkXI4MB7ispEQmMWA4KSIZDKxJXDKpIEyBqyIZCiwa1gxUMBmP+IfhHEkVYSir4qJJCZPh/jy5GAqjkNUllDAMBV8QzpFQxsYYgHdnfxYxjAP5kqcpdQQGCJbNyqGGyCiJL+UMKXUkUAywLgtHqKHJEIkvJmeIFNJiAesGV45lJPUSXx9OkFBJSRmClXHtVCalAOwJJ6g8hhIBK2f5hDKS1CE4eAfUUpMGfUK8UTfAyjSoAIkFuSBKa0T4GhIaWJ31IxRSEqQHkGBJwukRyqnE1jQNVEjQhg3rs4RSSiWA5GuRBgGrEs5PGEAF3bcWtbX2aAresCMoxdRga8q+tSRt26LZoWHtnB4dZJawikI1Fb4kWJ4TJMdFXEQywhSTM2QO6wbc4aDBU0S+gXBAxHMkOSQWUziceJaOGdeS5HB6lwFHw3KScGPkYMDlJOE4wsmSHMtdOIaEo+B8GY4DFpUeBcHTJRxFsq5UDsGKfagcA96Hi5DpEWtWEuYH3omLCLML501heq4uDXMrW4owtcQFJkwLcvYMzAtcYsKsgqdPMivERabIhMDKvSjMCPB+HEZhMmDxZlRmA3hHXhqBmSRjwEwScLmpMAuCjz85apgFAW/KyyMwA4IDnh8hMyB4X14fFcZCGg55gtRkMATvzEskhHEIOOg50oRxIHhvXiM1BCgHSXPcs6ThuRyGeHtuW4EProAChDpgbIAD58PuPPrsm933xxz0KUgVIDbxu2FIM+lHkxCvdaCZ9EtsIX5PBFtsu0q+RtTWdBe83mCa2SKELxG1xTTB742Jtm1/Ip9+sj2CwWtPMPsjKvmUp22LJn6XBJ7k008Ab0LwmU99Bvzr/7/+53/+53/+//r/8dHv8fGdJumXnKmfP/v9/PGd5u1Xv1+/ztTbW7+3n99pfr71e3v76z/+4z/+4z/+++u/v/7jv7/+qwr8BvheQFq+QAungTzve0sSzgnRbI98xvbYo8k3AHSPtG3/QraG7JGDAk175JPWWtsej21vrT21vSGchsS2K2n8prWG7jFt5aWZXVt8NQ1bs3EsNGRrSnaeXpgW2Zvh+CCAr09shAWHe2iCvcGQJoeA2aFFwe5gYouMtbV+W+vQErE3hgalUId7JaEJVk7C7Bo0weKQtDYQ//vR78f7qwixKs9nhJThVmkNHBADswIaOCy0cDgkWLvlfBAnewAY4sANJoTQHD7kWIj1SU4GeDNBEwcPc8HYxCmSA8FBSTgR5F7i2RmCTAPAiQLHkAyj58L57vXr7Td86jSBGUBwsjzPD3BkOAvcQdvjExJwqgQG41MnTKZHHBzOgnfQ9hRwvqMFnDaZGs4wnIKy3B4tOGcyDA2cOWFeyRTIicJbY9+IOG0YI+Dsw6wSJxkOLpTBe4Pg1BtDgPMnk8JphkMLVsWb4wBhAI/AZE4TJUfWYlUWQAagHYGcHAmHlVgVvP1UyglHoDIZmIscVrAquATCaWEqxGsIVg2uAaBcDsKpEOcLRwQWpeEi0KSYcBDCPGRCHlJZgutAUi2HEWbw9qFxyuS8NFwJklrCQUhm8NhtzOnENlwLJudEZrDtzpuDSZngajCcEzOBxxamJUdCrBpcD0KpcBhkvG1z4uFAQpXgiih+IMJwMDPaYRAsGlwUUMgchzDa7DmKYNHgEuI4PDfkIMCaBO8pkE9HshQlAL4ADGHOjOEQsCjB24k96vb+2D99fERbG0MKdWePtvet/Rn7Y5OWenBmOIaywXuJbX9CBT8FNTH7CFKo8Spwb7Kj4ksTtxTLvNg2ftMeuzCC4TyAdxEStohd94R5+Qqg2WJBbEAhZoRhj/iHYItIOeZHnfGPALCFWJAEaplC7QuILca6IZQR5tOML4U0zga51yDBwiCVKvNHCGB1oIyTAbAnQCnD3Ij3GYaAtfm0DtThDyDiiBAOCLA3ORHE+wyMQ5ayju2TEOO4kCLMA8CCSSXDxBJvs4ADUyhlQEjAsaGEjUkQsCSEOuDE4S4L4NBQRcqYFvAgmQQNyxLKTB2LcvsQJ9ioQhnxQBtTCFZulGmZV1W8eQBnSJvONCmBM8Diocrhc/cEZ0kN4WiEAskEUq5wJkUV8M4BnClU8JTIeGB9quzMiNTxziE41aREOBpJgcZwQ0KROQdrgjcODWcLp8TQDwcjQ1iGCQVrkltn3zzmcDimQAYLY0iN7PNJrEnwztmmFAocMcwOR6EE8wnWTHA52OgXjsd0e3UdnNp8sShxskdEAY+Ifo2RGMdwQFiUePd8vE9J6NcOKK3bnqEcF0tmMlUJt8/bzzlZwBzPqFUYihJ7DojgqpB+HFCjGwO1kYQK20yoQpzwIaUfh0Oz+2Oc4MitxEebB1WIK8NwOipuB2WJx0ysSVwbdvOAaN1eW2QfbK8AsyDWTFw9OZ5s88KxqTBNmjWD6yO9Jkn4fQHSjYzSMlo7EGoQ14f0oo0D2h77U/vDfNI+tii8puD+GCUMlu0wsCgsEWaEiW1TwtPXSdA8dm0I1T5GGZ/DOP5TSjqNCMQ0rMmOLYZK269BaIx2nU/J0CnUAtLE2uAeGlR5jJJ9uPAdg14tlXh21BBgZuDojxwBrCZDn8IQcGgMCXTbRpngzgEkribiFAFxgmC/x9tRtQNIXE7SiVYDD/T9fwdJhsPpJxbNUmnpk60C8QQ99uEOEE/iMfUmBYJnaDs/WBdWCn0q4sFeFqwMC2VjqOBJepye2rSFgn1b64IHPMyv7UoI66T3vvUgZ+pxKYRFlNYh8Z8PefTZtw5wpt4+roWwvA56mB/vF8NlQuvT9lWRJXQ+bwNlkewjJAsgLJFsI+ACcFXhkd8JskT2ciwDWSC0eo4IXwC4hVg9aV+jHsHtkT/L/rEpLTePsDyy9dm34XZpCH4R+IxH5DvbRzGwMDTsjmzS5JaZ8jVBn7RxIGDZ0OCWCYujd9u/QqwJxPIhwt3C2kn7EjUIDskNY1gbO32+jiUT532lKOLiaLViRZAbiBaKyNLozQCIM79MNCxjFkbSJ9sXUqHh3K8SUUkZFgZ92L9QseEdRHyGIpM9puKtGw1vofh5mWRZNEr1b/EWgmrCogD7tvxZuoH30J9ClSyK9Ap/Ri/wdrKKsCTAytjNG8pGDeG+eTsu2p8lnbiH+BJVDHfNx/vMLNUd7yD8OhRhwdQmB/Hj2uArq8zzkujWvtDoM8uk1+PXpcHXpEpbDWDvfGHrQ5tE23ttl4a8RqrIYkg3+EL6yCT21utxZRJeJFXCFB4f6f7+uEmwW77QeZ9F/+39uiS+HIoIM5CCXovHx6xiP4+HdNs/LktiR1LETOFiVmj7pKBfSsVJtG5pV4XQw1CE3DB7m5Xd4xdb+kyTbq+9BImdqwiroNmfr/x8P4L046IEZwlrIPTjSz9+9WESBR8XBfuHuyqZ0oi9duaQfvtFmSncLSrTgQrhKx9bny1TaI55lVLEcL8E5kIqEA+Yfo0LB0W4YSTMhGAFq2cGsT9XTqjhHSOZCA1nPAPoR7xyVrFxv0gyC4IV4WukExkOLHj1KEJuhPf3KkImIVYkvnBnciXjtbOKch9AmedMoFkUXpFOwmDcIYYq3AaaSgJjYVXigGSslMDLR5UbtzESGSvpJIyUWDFcPkMRuBFIKQmMgcE6voZewjhpViReP6oI94GhlAIMQLDwi+xnGAZrcAMIRRwI0pvTRTU1ECoFsTK+uNHNMARYE7wDrJNRtrft0ft9P1tKOTU0oQQQrAy+mgIC9cBbxVDDMMjPH6T3z7cTlgEkhrRuIcHaHUwBSbWANwtVDIO82f3thEkb4FNi2zXhBYlpxvLBwUmlBCd4tSRFuBMkg6ig+/60PR778/Z4qK0JDogdoYQkFAlYmPtAqKHcCJJh/jQJz0kcF7umhhrphk2snG8ekvGOkCraiPAisBGsjT2vV+HcCZITANNQaLhHJc+otB33iOVzM4Qq3Akmh0fslkKfNtT98RzVNBwSbwasSu4ECUdHN6HY5zw7MO12EO4Yk4OrOMjw4O1giijcCQcPFYQD6n7NzE0Dh5V4Tsg9UfduMBxUYlE4GMJNAffMURPLwqEQvCmsItwNIAfkSQ3eFsI9o+RwsDQHErwxUkS5HSQcCVgcjgLwzhCK5H4Q4LxoOAhr3h/C7aCQg4hYH5gfseqFU4p4RyhwBMExj4A7pC53hB4ADszciHWvXbhzNJwYZha8mXJTmMC0CI7NtADvEqGGcFMomVXA0ZkSEGtfPFNEuCsUYToAThCYDgneKqaIN4ZCyEwAZ4lMBbD+5aMMN4ZCzCwIOE8I0whxxMsnuYGeITAe4mSBTCBEHPP6SQ3N3SFgayNBxBkThsI9iqPeASlS863Ar1/X5RlptDGSxHkDgzTYBUf+9ZHW+20bL617Xkfrz3DSim4V9r3fvl+bZ2J2k0qxBZw6spNKie7N4PCkoBMo2CH9nWCqVrgT24Z7U9KFaMPmQTZpAi8joGZr2jb87pzI/lDT9sZX2o62DeOREtl3NX/OZ9v71lAafq9O27evsO/xyNP++Dd//f/X//zP//zP//zP//zP//zP//zP//zP//zP//zP//zP//zP//zP//zP//zP//zf8JQWbf1VWvory7DPmKqS/OYxZXntKmW55QhdCZ602SimqHDC9vN9qirJ75bscB9DU4JPdcWRunK6YcUxTEXJnLQW0PNxFkUpfGk6AIcwUlKOBwyLfMLQk+DXy8IMrc5n0ZMar2oLg2P5/ixqEvx5LThgqC5gppZk8Mo2MAAVFv2MoSXBr5ZGhb+scMhEppIkpxwHtzoM3R9QkyemhaNux+JfMXUk2X9ZOOp37DyGqSLJcXvD0FDzU0qmhmSWs1ujsZ2uYqSCZLBvFzTWMO1djNSPDN41M6wxMEx/a2SqRwbvnB6Oxjt6XjGZqR3BydfPAEdTOtofPYyZupHJESd1gaNpzVpt+TEZqRkZ5JfbtYahyQ0L9h3LLKkXWZLj+i4IQzOaoeNub9UYJbUiS7C8s1dHWLMADsx21NuTmbVIlcgowfL5qXMCjua2Cj7v0a9PIKNEpjpkRgly8pvHL1ahMrRAd/jM2/b+LEkyR/37klPzkmR+3XfH2RzuaKFuQLv5tz3vhR/GhP9ojDE/vHbxtou0A8zRgt0AeJe5Ntjv3/79P/6z/v0PD2H+vYA/PXLfgw9MlXvblWfvt/5c3SoA5mjhZqj3X/51xAMmMP9OND4wQ5tOHabKbYX6DX9n21zF+Ltxdzc4pqo3zPwcy9+Le7pPbQfDKv1ZZMWw5wiGqMDQ9qJkigocMz2pK3As8wVTVVBhu1FMVYHZefzb/30P6HEfU1ew4KcMWTFsMZyhKkB1UslUFUPXW1lUBY4F32VRFVTY6CeGqpjh8AlMUYGhY29migoc875KWUGF1b5nqgocB0ygrADtrmXKimGmZxmqAsOKAxiqAmC3cQxVMbS7mJGiAsd0D7OkqKDCcl8yVAUVthvGVBUzP7PGFBU4ej6oK3As+illBYbNhukKYMdH6go638UiK4YF32FRFRjW+5khK2ZHT2KKChxdezNTVFBhjpcpK6iw9g9MVYHjoAmUFVibq5QFMz3HVBUAKw1k6gp2H8PUlTYXsciKYYYnWFQFhmW/YJGVCjuMYIgKzFqfW2OKChy97tUVOBb+lKkqqLDFUMoKzE6s6QrQ5Q6GrBjme5uhKjBs/DtTVQA7bCJTVQyde7OkqMAx10sMVYFjzUEMVUGFA8cxVcWs/dX8axUIOGZ8nqkqcKz4HWUFht0n6grQ6kKmrmD6RxiyYljqSxZVAbDzCIaqGNqcWcsUFTimvY+yggqLfsxQFVTYcjhTVcxx4hSqCgyd7tIVAPO+z9QVrPMrQ1dwZIlUFUPnG1lUBYbZX2FNVeBYdzCLqpjjoHFMUYGj/dVkigocMz+nK3CsNICpKnDsMZ6yAmt1IVNWgOmeYsiKYakvGaoCYLvRTFUxtD6TkaICQ697GaoCxyIfMFQFjq1+Z6iKmZ0wmSkqcHS9g80rHXDM9y5TVVBh/SGUFRgOr+kK0P5Ghq5gjjcZuoK1BrOoigH7TWCICgwdrmKkqKDC7M9RVlBhla+ZqgLH7mOZqmLW6nI2qYbAMN1jugJg8W+YuoIdxzB1pTqdkapi6HEfa6oCw6Ifs8iKY8vfGKICMz9+MlNU4OhyZ6Pu1RE4FniL0ZBg744wFYFj3Z/ZwExe3EZI4DhiCrMhp8GEBOjch5H1cMKuqCClsz7LknUU9l9WTAwLPc8Sdd3RFiYlMMx72yRGZvCXdVFBTB1d9npnCpM/7wWHnJphzv1ufOKStRxTNQNWUDgg/j4AADC4AZ0BKlwDsgM+dTqcSSSjoyIidFkQkA6JZW78ANihk4vrIy8YJtoNK7oDmAbk8c3Dv8P/gf3A/uX///+u4rdl/u37P/2z9rPQxzjdS++n9v/afsbjeezHwh/H/wf5ZfNn++f9b+9/3v4K/on/n/4f9+PoB/Tf/jf4D/M9iDzD/2D/Jf+//T+9D/mv+//ofdh/j/+P+vv+j+QX+tf6r///v/75fsTfuh///cK/lv+f/8Hrr/ul8LP9Y/4n7ne0h//v3U+AD//+oB/7uuP6+f73t6/4/Tve6PcX4377dq386/OGensl4Bf5R/Vv9Rv+YAPrv6I/4Hnl/I+oHwnVAryiP+Dy66ifSn9CL9YwXmwFbqChMElQ7f103h3RgbGl0PrpvDujA2NLofXTeHdGBsaXQ+diFbIvQxAx+O0WnCwGu8mFYGxpdD66bw7owNjS6H103h3RgbGl0Prpu8WvQsvWlwApMKwNjS6H103h3RgbGl0PrpvDujA2NLofXTeHdGA9k/Qkuh9dN4d0YGxpdD66bw7owNjS6H103h3RgbGl0O6oo0+VHSc0RmCItPlR0nNEZgiLT5UdJzRGYIi0+VHSc0RmCItPlR0nNEZgiLT5UdJzRGYeN5MKwNjS6H103h3RgbGl0PrpvDujA2NLofXTeHdGBqxPkFtt4d0YGxpdD66bw7owNjS6H103h3RgbGl0PrpuyNGBsaXQ+um8O6MDY0uh9dN4d0YGxpdD66bw7owNjS3QftB4gqYj7aDxBUxH20HiCpiPtoPEFTEfbQeIKmI+2g8QVLkDSMFhXfxJS2zAiSltmBElLbMCJKW2YESUtswIkpbZgRJS2zAiSjn2NLofXTeHdGBsaXQ+um8O6MDY0uh9dN4d0YGxpdD6k0zX1hZA0ZZnUxs1oEyKK8MrTG6Z7TPQVaAI6xuDzFxgPZJQ1Jp+J9y9GrI1ZGrI1ZGrjwMwzY1VkdYR9mFZc3gMyI8kSLuNIa2YVgbGlzeIVEhFaa9pY4a7yYVgbGl0PrpnxhVHF5ptDrV1xD8cj66bw7nlReaq4DYWYVgbGl0PrpvDujAganvUQRYvSCnD9smNPL5Z6zBpE5me3DlPLxJ5PK19u7c5wJWywhpY3KwWGUDbtgZa1m+Vzlc9wGrbw7owNiy8gpqDYW5BsNZ6PHidOm7Z+qvKJWm/uUiP8JxBzP1y+Kfxw4S/z6I3oSr+IMvSgSYyec1WCjUyt6+N7Qf4+bd0XXY/DYviJ1rn0OpBvDujA2LBiwYJdXi5C1Pvlrwbv/3elO9gaGbAdrJaLatL2NKUCFUoDkOZ2KkDbS3oT2LnAjaVoKyMWDoPZIzb+X2XCanzpWZ7U5n9t1D4u+4L3BjVtxVam26tdZcT0fz1GvJM18tYqVkMNS6uU4YM96PvXC96lAqnk+RXpJkmkdMIefjpw5mt6tt9WI+DbA5ekTxT/Ku7VGduXJJLHri0mHdwFhRxYomI8DY0uh47E5aDsQEjcjMldI0X4sgXscwDH0ExSsCoQSNVHyPlv6i8x6YNMIj7AdRvy/htmibV2YhVkze4hkB0BI1gJkEKhWhEjtvItc9H9BYlBIURvEkj5e/OYQTDdiWJns95ywxoNq9dHPVK5r+n7duM3Ob7IWQpXO1UWhUiLmia+g7v0JLoDO24rvs02DVqsOmKs2217BjVGFBUfSDANSKVzfV8+spFe3eaEfLf1F5kXmPmy6g4+nSqxxnU4ANYuNIZOrsLWev0JLoDO24qwhpjUPnjs9KlL/DQHcnMJDLnkL+KPj6HHGQ94Xwxwr5gDL0bStkiJwpyLEkHmEYs/C9+rhNOBGXSGHU2c6vm3HkmFYGxZeQU1DSdW0FQrQl40Ar5GgYfeoLTT2aYyozEaM588ktPmS1MWRlobic6V8e/KpOCgjqRwrcrtWek//sof1Mj2IxFa/dJfOsWhfcTyzBv1hIOaJkLaMNOZJdD65nh6UnBQpeLu86HERwIqYtclqcWwVOASjVTBwORE0JV50LzpA2/KHxgqIjc7lW/KADeoFWF7PCrKmqKRASQQqDI2oVXayzmXajd6Q7lJxk5LWPQ7BU1mE5CRBdemv0HIToTuUNOzeZkr00otl5/9L+XdY9ROfA4A5HZVltNhm4Ex7UDRR7L9xuNHDPOBOCE8YWQKBPGva/eREVzwuHFm/WTCsDY0tzrbbPKlwNjJsD11BCB43UKTA3xKmm6qTGBNoHfTeHdGBqxPj1Zz8z/K1BW53JZc6H03h3RgbGl0PrpvDujA2FkfHTmwVfWIkgd0YGYE90FfGJ6x5jea2Z+g5eQU4gR0wfTeHdGBsaXQ+um8O6MDYbhB4ShVY4a7xU5mu5gbFl5BTUGwblehsaXQ+um8O6MDY0uh88czXDnenyCmoNkB6d3uIZesfe5ZmewnowE2glN245T+tvTT0vGMNWbveTAMoE/GzPudFaIsNyj0VuG3NePA/pcR02UOCMvI5ZtbxYn/wuL1j8DoTMKuHW0Z5gqd50MXQvmu8VOXYBGwdIOdoxTdnb9SRBR7ez4Wr3Kk6vWWnWrfHDr92SAQVa8C69FtBBryK0QdgR2cSi+YOPk+x2+m3d3H5nGpaTAJawoQosXnUZWgmhizftEVRgv2WcTHPtE/SOJxBedRn03ZGi/v1JfhbLx28uxPLT1HhFjCN0wDvQl/YiZDjEZPu+kbxXrsHtmcyzxnZBjKE/PTkXmdHkdt5vZjlhv0VauC2LSbOUc0EdRmg50f+vwRkylZ86pXQXysj150Mo47pyvPv0aVdNLK3h7TvHH/bWr3285qQaequzTmomodh0vflt9A9HpgQ3AOKmTCH404fhb9vvvs1EAwP+xzFRif5fymEKV1Ear1npl5jtMUIgqSnfwk22GZ5PuhKlQKdoUj+umfOQbQy69R40thikQf3cuoB8d5pNWhd9rw/BvHmPshQ6PtGyazvqlfeAboiTDXsV49YLMmMuGW1c5G2mhAoc+lb+kBtopoxAr5luIvf9NTVmFYNRwUe/39RuebDgxK7ONU0scNKQZArdso+mLTGcN73kWKWeOYgiOH3QqY8ETYtHJJ2S0leFuxl6Nh/3MpDN5lU8H/3HGD150PGrbsjRf36uxlHHaKCeaWW6cyGzNbNEaBpYTt3MwJ9OX6XsBBbXngd3UYLiN+2Pi659CLCGZQCRj+FyYbNJwwSghUAnSYwM4aDDKOO6R1oodMhOAh/kuHsUVV/oIOV9+n4JoZXDH0JYovyBtwjPFjrsL9TuilO66uxWNC70D2LnbYEfLiasHdWddda/IKhSivezSnBLhjz+rMFyQJZBentOCpeqlRMzhq2TmdCm7ZIUrJ9ayhUufAdjrmCSXqV5Wb/32tRRWfCZJUhLxOF/GEwVPFTRN1aLIt3/JCBKuNCB1C2gdBrFH7Xomc3WQsuBHjeSdktApODrvmi4CtjebYcdgsC9QX2nK/GsS+22po3T1KKZ1ts+MKvuLCn5YU6N9bXQv5uTANCEmZv63msczyKNAdwYB6ECMCTAB1WRog2ODFIMvR7Dbg2tLVYCDO3LwNchLsuVGl/DITMQlvND6GZBcdU2jjunK9DdwCGCCAusGGbkjxN5xTj+mlEu9fhb1OG+4VVIZdQMGY1HiEdqVsEOv9Bduzqhg1dGx3f9Ney4yP4DmKHsoVr0kTfshbCFdXfaHeOH461klpzMvzvHmDo8zoKfUVbbnTIyptlKDutf6Q2knBRkob8bbPi17vdW9MMNaCO83B9jPg+EtX3AkGvcJ5A6B+sAvuZRFexcDA8whT5r2Bsufh33wGjnqQHgSYU9n87YDl7e+qV7P52wHL1N5Ur2fztgeHqbypcB6txjUu/kgDbL8kAbZfkgDbL8kAbZfkgDbL8kATW23h3RgbGl0PrpvDujA2NLofXTeHdGBsaXQ+um8O58+xpdD66bw7owNjS6H103h3RgbGl0PrpvDujA2NLofUzeTCsDY0uh9dN4d0YGxpdD66bw7owNjS6H103h3RgasUKuz7l3LuXcu5dy7l3LuXcu5dy7l3LuXcu5dy7l3LuXcu5dymbyYVgbGl0PrpvDujA2NLofXTeHdGBsaXQ+um8O6MDVifILbbw7owNjS6H103h3RgbGl0PrpvDujA2NLofXTdUfTa1M9pntM9pntM9pntM9pntM9pntM9pntLVmQkeLrFs+4N4d0YGrE+QW23h3RgbGl0PrpvDujA2NLofXTeCqAPG0NQdnL9DNxyF140q6I3H2J/tJ83do5hFxh+9BhX4znM9pVOrFYrFYrFYrFYrFYrFYrFYrFYrFYrFYrFYrFYrFYrFYrFYrFYrFYoIH3O6bNN943FYGqDqXC9BxUjxvkasjVkasjVkasjVkasjVkasjVkash3LAQomOeus8gpqKt++4L3Be4L3Be4L3Be4L3Be4L3Be35bANF1Tm9WuiLgAxdC9wXuC9wXuC9wXuC9wXuC9wXuC9wjrZq6iU5ikIFf0IWAvcF7gvcF7gvcF7gvcF7gvcF7gvcF45QjQ7XNdDcBUgC9wXuC9wXuC9wXuC9wXuC9wXuC9wU87RdKc3uaJF/+dG0M2hm0M2hm0M2hm0M2hm0M2hm0M2hlpMEKw+IjE8i8om+aUfzZe4L3Be4L3Be4L3Be4L3Be4L3Be4L3BWJ0hARoktnqyNWRqyNWRqyNWRqyNWRqyNWHAAP77PfbeW/SH9ABrQ/DpyRDev3oh4OlVECp89PInFdtE8vO2RCXoKeP643m3UxLVZpgEBFRzi/w5fqNbibltT7CXMnYgQRFyyq4smF0uA87tzqqgZNU1E+RkDR/o+1Ntu2RkgG23bIyQDbbtkZIBtt2yMkA227ZGSAbbdsjJANtu2RkgG23bIyV4ZyvzQv4VJqniLd1VhQJA7urC4sXxJWztLA/RnAqkM1Osvt3q4DSPBpeL/Gl/u1uRLdSru8mvRCv8zP+5TGama/mn69CO1nbMsyeFFfk/F90jFCmAPemA7fXnW+7zNsaeggKESG0hC0vXrOttFQu5C8OmZdP8mv1fjKErbI9qWlTQB3/1EmRXCQzxEhniJDPESGeIkM8RIZ4iQzxEhniJDPESGeIkM8RIZ4iQzxEhniJDPESGeGkSdX27rl8WLCj4HiVFTmLlIIYCQ3Ma/1PEKgPcPRYDSAAAAAAAAAAAbvxnDCp0st46WW8dLLeOllvHSy3jpZbx0st46WW8dJoAAAAAAAAAAAAAAAAAANvhscAAAAAAEcgAAAAAA+ua2AAAAAAA5lnsiM/t2C3vZEZ/bsFveyIz+3gA2GgAAAAAAJKUCwAAAAAACldPiBkZUHu6XkmXcyU+mCO0jmf5Cm/poeC/pdx7QbyuzPAo9ISdgpQ+UqcMCdQI6xKNx9JU0VGyl3Vn/gW+kLHtxGwAWC6CYQuYZepHi9tAukqP6GeFm+JvE/LZgcfq9KW9V+Yh0dcpYSOxLpvK/YeR9IZ88NJ9XvxUi1ZdYjcPQAMem0EBkUN4Ws1mJz5cXZLrve4ZnJeGYh3avUPO2eHNFoMU5M+W6hTCZBTtOYiokJeM1aIqJCXjNWiKiQl5uWjlgN+R7a1IBXWrGf9DoF8sup0JW3R/02hFIEdt8uhXETNwfb4S41x6N7P58F9LzOfT+K5Fzun4pIjB2ZHXryntHbXU6f3OtqYND0sZ4+NAuRePmHntvIf+ZUgHWaDsiLoCD8D8HHM/SsYHIC6SrjBOPvggq1KBUReq8dmzRlVMfUkfZz3fN68yjsyXaXz295/KzKvXAAaUu7BBsX/lFpMSEGjtygAABNBwWpQ6eR7K2Z/Cz++J3fzcJOZMX4TyyAT5ea+V8moAEQaRtCBeqkfc02yADM7gH7egR3WJieaAtVExrCtC1Wsm3nL5IzJFJKvcKDZI20WFTEoLqFoSZ/P6MDXj9sxVDUxQKscQ6Bz5a7pN/CDmxyZeGVd7qiUs3Ln1K1Mt6UeSZhl9FT7UBHYpSIg6raFG8rUM1ZNyZLYviq6rNslwhiCxYSwotyheSEAOI8dHEmPeYpTyRmwQUPCAw9AlKvDkBmsWg8fBUZBUI85PxrVHESdZlAUijIWf4alvW+p4ieMt6iPxjH+PwrfH846AzbVuiSO+Z5V3bhfj1JUhvjX6XLowGFi1I5I1hIktAZKcsRpmhEQtlhiWHmHuuBLir49foZoRvmaJhzbNwure7uSQHkU8IGGi4fwPLT4xsbXJn9gS4XvFLDm4Oa8e7vhfV4gm9CzuF/7JpiyMsC9J2XBxCEZHxcWNKmOErMehDVN2asxmdytnz4xtmzub2WDV7jjLQZJBzJcGNaF6aguVQiHLbx7yBmQIm0kg5p71oxRJdEL4ClGYVFvs2z4MBie8ayAwb/gt0TwqdVxkYuA0rFQYRwSalItyaGXeT2dCmoketwX3hxK/O+oDKKaBPrR8Jw+sU0ptRJ8A9e3LSDXuxQyGAh43Ncee4GJR5fGhPTHyMC+GMKHqLsdzlrJJ92i8P++13YZDlemXIECNjF1Ylz5S/PF7qtx0PuZIHqwC80R/g32dfeDSyHlzRQA5CeRTTEAD7Zs/qK/sbXsohS2m+FFo8UHfgeozlfmTMA54hZYZKQ7Cm0dixo68KpWgzgli/NWr1ErRCKdmj0knbwuWzou/M50kWrx0y3bmWOGbgDqpjKK38e+vNqBRczhfcgQwR9vVTEDnNjgbxqbIxE2CggaS6IbHPQeGKcnIfyu6IUm6r0Sy5ZE+04uOvxMcvbrA35md8N/IB7qNMeK/KSuCNW85aEb0uZacXpUPA9hF9LueDxBPN9h+FXysts2ftxnaAP0U46yv7xmiTgTGQiReExOYe4KKE22T4aBMTfJMYMthnlpuntO45ntfmoXNZLARUWUHoFTLWJNRYeVUoatpaAU6lBhBleNm54jVKo30sdTtdwJ6HJwy8z2DFc+ufxiC8vTFKy9Z+xBik9epP5RXxtndVGfHww7aiBHZXdOrakdFvZIJzjjt9OaRgX0ypJcUhMb0WEZPpDe70x85SOmMJARut5bPji+I+/g9jpb4s2FFckEfKzhU1XfSKv6lObsvXhlwhHrsdZfclBjejyYx3Iiso0ofy+UmgqPHfY7vob9wJebMmOxul6TJDb54aQUMrm+Jy+q3O/1QwjaXORgTLMOsYPaAQEDmIHxsk5sJOrRruONgu/XiR1+XWOnNdbXGHdSvjla6v0lSHwJZ0E5eRCs33pIDNY5VemxbiwTf9JBHytA9ifHamfupZAnehmPWRrKP1ehFdJZkFm6bmzNTDT2mF1qF5Kup7jkaHyuyGYanh3TNckUaa/F3ki8ElAd7HK+TLsn6EcQv5nRxXWks4fZijx98xIBtOfOeUxoWIad3hJLNinkXeJ9VTia79Z2Cc7s9G4ab8yj39WLWdC0wOazUhN1wB7XFJO1MOm9mQe1GINWCMSSOAwC2kfuMh5A2f4+zdyIa36c6WBszDvm8qG2UIwiejtEv7Sxkqe9+ITeUqnuagJgbH/I8n0eiVPG9YXInLkYFuJPov11vQyUIbg+2HuQ9KOz8demmMWi3JDwclpMg37iGGWKt2Gq3X/6/ZoUoobrsOuHqls2J9b3TXGX43vtpkHFqcf747P7UwdHnG0NJv5JKVom08oDw49MXwlrDAo2DziUEZNAVPY52bK57I8gm+CQl2IHWNRgFkYvkFswD6W/+TowAqWOMpHBvw6mFs5wjzdlbtdCVSeH3UnzuISGnhV/GquggTEWG8Ci96JaHpIPqUDcmp0KCqMWRW3rgT8cEsVDuVSOdnmSFnC8LStcMasFdoMIFPU8dlxEBzxdnN5omur1dc0f11B2dX9N66ttqyZ8Peruky1HbPlfpl8Cvcwu4O2KxALuz4fWPt6N0jN/X76gF5yw+6YInaQHwWrfWGiWpsrGd3cbNGlwBPnYwZTF6sGXdRM/avKP3jkIWE85W2Ak8DNqznmU3aQb0VBGWNUdNOv9exlkuo6pZIJ9YEIjHDKdPf5I6I64dfPsbenzQvIo2UbAjsWZOgH9SoDoIM3oFUayIDhyS/bOV2xvBtsNcg920mzG0NdYnhwLDHRB+wkHWtVNLczKvHERf299DqK7DNw/5JTFCKlaEcoX/ORRPCfCmjM2N2l4IEhDYGMDoilKqlYd4ajgMzsmdn9aCQLAF2U/iaQoUG7mkbv1Gohevkq0hxbRemPnnexBeAAhrIoeAkbHU+f4BVrGh8rllmsydU796CNF81NUTo9JMSKqLq3qHfowTnsIEMvrjnhwXKOFv37Ls8wEXxzecYpVPsBS2RxeGU4ZnoYbvXPJtntnJMUNw6j19h+al3oMXmlhXtDso/vBbUuGhjR1WDW3WOyADuTY4V/xVsad0l7fvLaKr5x6EeVUrVLFVbuUen0PptRUaFaxfn5YH9LnpLJk8yI/dc0JGV42p65USp5kOcBUZhPXhHCqPuc5J/55oNookmZSl2+6KY5q3KtU4s7hq5sXs5vZm43Q0oCOBXpgnhZYQOBmuwErO2UwfXEMS0Yecysu4Gdf7Zx3wcnAqfVI1gpee9q3qG3eoe/Heuq01Y9fjm2jK7qRU7qLXc890YHrfH6rbMs9uXUVwqiM+VSdrdEkhgG1gPu8uboUECBTEQjaHL8ND1tGxRoNdZnemlAFW1wC3O58yNMmWjuXQeyOCl0Z5Fc6oEwjBGEHWTooLunZ8kidUPO56k/gxPgFGIlMQn1/IuTL0waqy0P16ebvvCLusp2VjjRU59OQ0k+IF3U5gJ+6UzaK3nUOHwODEYw3Bl5KIEd/psv+deP159YeLcOgXAuOFxwctanNP4gev/LzgFawu8mmuEjr+KeO61dkwAMbUawZcuFmJSzehv64HGgOZ8HpyZwH8IHOeLKtG7g6/TdPfz5h3oGU7ondLMT3MwwJznMYWG9Wr2No1MVe9xSK03DsCeamwhh4AJX3gizENihKV5+VgsP7KN+1apTtFLC8h9v6zFD9zywfcBz+fgQKwQzn6in+5ErkEIU1jWqQLv43e91sEedsEmYhNjRFKot+VKdk9X0ia+sED7cYi7lQ6VGzy4Yrrz/sg9hO+We7/+dviMMdTkBIvZLRXvRS69O+FwFTKv45smz7hcjscHMnxUEbvfFV+5kH2jArMRzX9VOqQxEsQoYBrkXK2t872SHxVUfeJa3zGCHG7Bi0qN3zvqbYl76rJF1MQzVgG4iqOy/D1fNB4FJrQ8UiFm4asN/4R6FPcqGf7rx4zi9NFzYyBo1tNJxW+8X43yYpYQwonuSmyJ9+FCZTmlI5IWe9QrbkKjea3lOiBpmBJbqWWhc0CYlvsN5hg8eIr09hq+MNUv6oXCEsgda5buHCDvYKPj06BvLC9jJv6QxLcPcGjuYsqSK96XNWusJa+KEemLtqgG/+7t7RG2gc88mf3z1dCvoFoVbrMo/wVZy/JCRfSlCX+9+OxICv69NYOJY3z4/RCGg/3lut+5hIwAKwloZbhCoQ863i2abEXdgQMJWztom4//A3RbqSzb9cWWlucnp0srQyr6T8/1ShAsqT3rvK8G+xAa342AqBfs+HGhi/vrsuKTfAM6WeU34k+4eXllLoYCH/qg+8M12vWtWY3rFYuYJ7cAHxXd9NLFwsZa9tbW2Edg4jV+ddkbbRwi3OgJZwucveu7WWVR58tPmvnVl8dqGz7Gro8fTxkt0Kf31lUlHNL8BWTfB2F0VDtY2stIohThGXgDRFwN32lACWIcD3V61yJpcsYLLLh42ZQSPp4p7eFgq1BMfsHiKAhNZ88XVg5/ItnKB0Ejq6S//fYiKNjEeHj5HiHKGiPB41JJU6byDbLedz+3P1ir3H7ZquuUjnWt4oLl+7BX6dILb1puSJPXImuF43cVke+PeVKYAgx5HMAD+VsQJXdSmyEcFYcaVRslLgCcPX5r+FOsRWs7fjQddzBpdF0rSp3uwSwNvv79OEpGc5i12yzGHuoswc+/sr9EGfx02IkxciuL7U9dtdMpfxv/J3JLkEGJvjb9ENntGu1ik3ldX+7uRlSzkDPU7GdTIZUHeng1XEiCKAMyaw8mGXy8ATp4ePPOpyftvxgxNvdfiTJ42lJe3sfH/sXa8ZzX74xucjTdTwfmeix21AJSqg/PhM70STx6q8ozgRTSDENkvQqSXojLBkmObdXGeY4/UGLapFfWuS4mU30+5sOaDVJvQJzE+L1kAYXyGhuC5hJxcGD/whr5+AmnNGFQyycetlfipjjO/jDv+piUf55ET6ncVKH3p/PtUXyROPP+6qCaKhWPTxVLQiAcgL2/mYo7omH029M5dBxcaoMjABVguAVBcAVOL6i4Ff/axBK6VPhrhirK1s3NHTpABWQYq+4D1o4Oee9nEZ+G3SL43NS+Q6uyiiPBFR+RO4e+TkrvU5SipkADc5eSTf6iJP6K+GzTomH1hNue++ZNE+FerSzr0H0deq2ZtQXKA5vuozM8o79vzQ2Mz5JKt8uw0w0hg6qT6EJPjLbzEznCsLAkYGk3RQyTOx6FpT2SqgOPotS9/Hi41WYiNW5DaCzB57t8lmLq1eydSNa2BU5Fnj4Ik3kiVl4//nAnBfa/JEt1n6F93EAJszgwtOWMplTKKZi/SUCxx8ojucgVsU4JOjj1M8xrJOdjCxiWHok/ZreF3o5Mox4vXq+83lTeHmwCQR3HP8Lrfyo08xBFIBWzEce++XDeo/+1Apu2vMeSxxnQubl81peswIz650giMn0nXBXj1HU9Ae+Uj7Nt7I6xYmzUoQMUTeOFPGatgniVy+oOhga9ZjulGu3aTEyGVKIft2kB3cYydMOYfgVvjMKq+I5nVjh4nCzbd63uZAWgZ/uqkE0hmT8GT1kIqZuERPsDwppPjZPF58K35jzPvgkl6+V0mvm7fOKnun3gIHKeJOPbdam4bZbz8r2R1CX5K6AN5vCv3h5OFvk1fxSUtnjjFw6lXVWObRkvfsP2uCvggVZFFHfOcJR+RtLD/DyScomf6up12+8OmKtUecx+NYGPc6LJEiV+euTn74DAkgbeH0ZSXLTjaqduqhbEnXUL+BBPL/0Qa7p0315B8cLaUd45aYG1BW87SAn+E+7Xgs+V6xPBpyMG/nkRdtQcqBBE79p6dGeP59CVH7tBZHon+H9xZ3RwGSrTDlYcuTexg0lXBtxQ+9DeZ7yyaarE+0+SfzZ5D0sRuibUqhoVuuDA/7gLD+63XvgP/ImQbD+4szH0AhKAmCUEjgAuiB/RAJyGXs3JUAvfrexEpZtLCZB0qrh1S3HJLuJM39H6aIl0in/A3bB0qI+Y+9VHeMK7biLSx8aSxt042hB06NvdEjxBCiDCd9jJjJZ4+DHagStYcxueQ1FH5uwIQTai8bmgcDM5NSZkKFWuv+eAwAGd63Wfu5Znokvvt0HUU9kzxGJ1LR5gKxClPz+p61RwAJwYsqgp0+Z2+M/vcu/xO+LNwnx+Q9n9PF4AVuDJKZSrRFRIS8Zq0S/gAAAAAAAAAAAAAkg5eriIJvSeMJWIqxRdG+iASVWSJ/x0dyrt5XJGqxe1SU7DJPlqf/6S5dW2SFiEKJjnSEkiNndes6cgKAAAFyUkwfHvyxf4Vg5WDSCRQjh2PyKImRUNr7T+KLFcsWWuF2AkpBUg1RLlkqJl6cj3SRPfmJm1JCecjf9Y1b8CEGcSqrk4FJD7HwwMZ1nHV9lsTlOKSxf+Pu4kNSwdPXy3C97DQbUBBjYj+OUdv3m9Sn9laT5D+TVA7MRe9ZBXtnirabzYvKVMsAt1zhwr3+gAANU+FvuebMM+Cpl9mqEHl02nijqxRSm13HPZmwZEvJ1ylU5lm318C5+/E8JMVmgt6RT5jC+gAAKAi6uIaU+QHLu2HQ7RwTraVnc3zwVoruP0lJG10IX5mnNYbAQgIVZ2hSn1zydZ3+Z+lwr3rPd9RsY0wrLrTcD6o5w4kvCqYzeIpZxM2PS1OkfYAwbxWvkr2V3Yo589be73lp02Gva+uQT0HEZv6G+xFZU8l1nLn2unmA7bSDy/UuTVUUQRU1Kh1drB8twCFHP1PAddWyBWZ3gMgicZhEM32o8rEMcFN1aEkcYLo+uZG8inNiJypucHz9m9Qq1rb3IvBnwFF608WgfeNsgC1fB/G+/4akn0evxX/um4FZMOLPxalh3+lwpCfXOyHmWyeBOZHyzP5P7ed+36Oz3VkyUIwedo/+qIq2Kf6bv0K337WimaQYey6eyq1BSHzX0xcGb4keuKvx2JN33ZVJWYD6TzToIMmrLDM3WF//NUHzDMCOdY8wgTN+JM14bpaSDtZwUbfL9Zb/MZ0ls8ywh8vlxaKDM4CuQpc+uVcf28I7XAcjlqyjxuridN6SOGHWnP6BkJPwh8Kqlv0tHUrX6N+q2hy1BucC1ON6BbbV//MKen4fAyGOrpHvM7CTTN2O0FQKleKwWmTmSGLHasdSEYKqf9qD0+zubRD+H8pIPcvb1Rj+AAvqUeUfx2hx/A8zclhdoREscSAJjMDe0qasxhS0pHOzfbFpTqMiGr4+gLYm4pUKeqfl3qqC/jhrk0J5aA5fhm4085ydqAFVVSb9oolRhxDkrq2R/wa906ISK+cs7Rpo1qR8wWUUFTY/BIOaVOVzOF9NaVCWpWozSwadKG6xdZsaKfBa4i23U63FGHpCTl8mXihXyv5fnL2AeX6m6CZl6X7+xHIM7HqoPZphcDq3q5nhH+VCZ8PzTBU6p8wdfaXbqRY7NxbnYWggK7TfYUYTEwDVL/kbY69IjHCQTqKMi27U/MZ0Lii0hmOMD+NyPkfc6kIyYQ1SMENBLXfbv0sYKTUSV3qrKj6o0R0nbnZ/8Ajelq6g6Nvh+5bOywFxygG6hvVNGsnCnwU0xayWVsCsfhlcv0FGm7cpsVX46+DWv0UwGyBmEt178xO97hWuR/oLQ7MDnog1vXjZPm5SqVccOjqEEUCKLXw6iHEdORyX6pesRKs4RLu5vdbYX4z2aMOjAmH2ZIVC70gssBdZIzPghKqBkHDb8a4etOtkK7W2BNakrwT/VIZZJw+1MpzfJz64uCUOpyFowVY7mtyJq412P7QpvcD3DS3qwjxerpd+mNbgpR97TzEMMIaMbSEqZ29F31LQgXOIegnpy2yqJ1qx/Bw0exPrBF+jgu1VIhhLyMC+rCn0y9BcPsX98gNON6lFbmArfmvgOSFo1dIClCHpDK8/H4lXUREFYCG8C2x5ZAclaK0ZBKpBVvRJV2kI1nnuvF3RHGQBw8vo7RWwRdTffsMBKWguDguu9cK0Wklanzw64hM9/pCITExGxiNE6wTUQRxVbbos6mlFYGxrBjgRwlZY6g/V2zsAx/JyuHHtkAZoIKvm7cVKv9ZqbgbLHkH7GzNe+hoxPOu+rZXw7FKnI+cETuzAA/g7VmVt2QsCddJexI7sAFomGgQ/NKGQEZHA4hS4hBvuoc0HQ5biueCnTLYP9q9k352CwZMEAWOKORKshE+o7aSw0MoGbenOMMm2cKdGm6bFjEtlVG1BeDYuaFZIi8mR6IpCpTY8QolnmXxAQ06svpdPHQyHQsX0bkTrAj/urbK3pwJDcj1/4kwSfK3pe816ga/27gql5kmOcjFEIBZyWu06/9EkbKfPRcACbFmL7u+lkccV6ReW8lM2KsEOkWB6gt0Inh54aUpj0OqzN9XiE9TgVgkBThRzhqArgQBH6a7IMWyKV6e8lfutFZ4P783f6GTqgIWMri8TgJ4lFn6XrddQVXxqwejSLsgfCJm/7cK7aO5jP9nOu+QpPK70L+7rOVPdeGAPkrW1fczvblewZiURqSuUR2Z0qUDjfYtWdnI1P87hZQCFjkun53pspw5IQj5g8FB+Ch8J37p4xWCTe5kuKK3Bds/fCUAE81RviITHS0Gqfyfbn2thy+BVi/v1ynFHg1iXk3XXaXtWksZl070dN9ZTphe9F5TxX7UrzSGMlw2706on0gnSaWy7YLeQde4/n01knHSy52Wa/raWe8go4krPCzAJFr06f7v3WvSsAmxJGFnf+kuCJoB4IbumoyHJXevdTLpjGIPg3z5uZhtAeucPFgfZP3jx6+WKuTdxOvD3i4PdB+O1igg8G4kISmrxCeGDcSDs1cIJTY8neAmb104YyhMoQ++CdLRaTfTaWneLOAtn5OSmu8qj9ZG/Hlv/lKl0AjDddtewXrLwWUptTqgOMjApkuVs3cYoeSZXQm0SNzSm53duiAhSAKz3k0uLb7craQW29XRXD84ZnmlplyfzWk9xLSYSF4/4GMofOhTJRtXHyE3PhL8zDmFQXB40n0CP8VqqxQkbxB4GFJXPZe2XhEqZW1X50iPQOeWogiVL0EucV8/eoFrOa84ivwIR9RQy3x8TBVdVpn3Jh+uclV/vblWEMKBedQlu3g/gpnHtvXOfOdHP/dp5EWkGJkdq4VRF3sfwoKzwE+4wFAUCg9lAMQK7g/w0GCdXZOJ8bQhYF6VQ+KhzW21gmYu4JzckByz/G0tdDyTV8LYMkpw6tZktrjdcoAfuxVa50NIZQVs/SJPgdarhxElHbuoLAAu8aQ+gBfMcpcsU/5plZRiwNRbRziIpR2YCHe/Phwfmn4C7IrAp9XKMneiaXHGZaO1R4s1Jdj4IG3KZt9EVAt6RJao2H1ENG00GDVMlyBzDp8Slh/SDAsry0ViJQ/kPmN9hiTFy98kIB3aM9E7GIXlfB0JqOSCoWOdg3DWkjOhbljpfeS/xssU5P7DzmJyfw+wn6fwX46rd5zEgt6lCI+zIb4xtV2MlmPhUvC3eDxuGhl6psD9NvKOpz+NUF+as+7fUR39BE6vt6laE1v9PYvgRdpvpK72nbUQiDaOEKjqecjLROSPrBlLzgGnImCOW6qkTw0ArLnqyv6r52rJzNu8Y759SeQxx/t4Ashbgod/dwxDxRWOWsSfzY296zO6ISjx/ewbJN+JR4+13TCYZLFnxIMxTATqb+gEDmyvuJ2teHyUAcw5Tk0NDtCqLCDGoFEUhBkNIXSC0OE8vZufStCv1dOfwZFgLJx1WB3VcweOboYNjWKkP8LZwk19/QrIepxWTLXLVN5TB2Pvz6Aow6jE3VHgc2Zht2jMB2FFVavnjVQGyJPuUzOERWCzXMiI1ElL9gycDPqc/TvNSYUtiM/tZRJLgbW3EwehxqBqgAB/cqH4eKRrp5Nw3W9F4Z7BMK13pN4r/gHofcJlnrXi8M5W9Bj35xA0ojGn5Qxn4FRTHzBxcsBb1jRMZmcB6cUWPRjgwDcOrpTqzs4ESADtp564nMD0Cu6CRQBr6xfWCSFrJ2TMa1KfJS3y92akAqVgFNvfGvo2Nr/kThWz4FNP6AdC8/SZUD641WT5DBRBNNsbQSZZE30FRPkX93n7b0grvKXHRIIOjk7FyZh98ZssZAiwxESps7RPniEs8KOlLMdrbD3bXk/m6fN22xnNwDPgowRe24UDxCO12fcRzjSWWD8iOfY85yjgVW2ZQ+TRf6ggFhdMG/rbgVElaEtwRoZzqQ279bJXSV0JA/ibGP5R0aVb0QT1gdWdiLDG76P6Axd64gQeEcpwgP3LjpILs7EFn+398O3AeC6rngd6QfOLqhFWoPEAPL6A3AExn8Sc6DqyStIWppQ5a0gnj6MkP23cfPEDIbUebzZnR1f8PovIsqERgW/4ttrF5wrF1ztxbw4ITolzc50QM2DlA1an0PWyUHg/UdJZIF8TtxPFZDfcbUSnGlrEnGzMSfPLhcAKp+ryLYWFsHNYJ8OAV8tuLXEN/itR28lGRrCrrpftB9cR+hfjOlfPjy4sHdJsEZYK9nHwXSiYZAtbiVtGePLTuRim4eN1yK3jg1bwJmxNApBexQwTNoL4SWQlZevDNRbQIoKY2y4hY7O/NA8mTvQyZtN96uaEOZMUA3QWup3IUqppxsKqSmtONrFqSZd+kqvgX4077GMAW8Iqngmz4bcnn0SwGeQWwsfYyBp7n5KBnv6I/Db1X017PVUhsiIR+WBiX5zZJOhAahu+METU/QWLTw/FDladI8bhY9Ouf+Py6dY8TMkqYn3oTBnix54t26NKrenOmeppjr4B5IEXeKPwkHNq56omirkeuzRKdSA/LOY2zxZPm+rrVgLeAlBU/mRj/Ew0ykk4KRJ9utLry5Xkabv4ceys79ysATgeWG5GMIoHH3Ws1sVF3BoIzg+9D12sj49j6bmqA8+kc3MTekPdmUvHlVtFe3LzV6/12vLa9r74JgdutYpOh1S8HhYRE4jHO/0aoWAmL4IptgwmcCIu3mLxqichyAnY2J1L5WBvZhuJ8IvUQIatNmdkBZ8utHSP23W5Mw9mm+NAC6Pm4nWNQJtLIiTNAeg/0CBdNwD+qvTVJXTPCP7vxjDLp0OUdKiCmkaTOMtGUbxH5SC5WxUUZZyl6Hj0CSzprAGYWWPe0k/RRrBvKfLgbD1WvoriW/i1vqhjEYRLcjQcfvhh85qaEOCL4B2BhMYEIxRE9OXtwNx8/fTpp2UmTOwQ/3Gqs0yua1v7/pImKOniduX4gPEwpOZ4rFY20yCeg0o+zrdj7rpiu/xvJRIDyBVbqVHs2Fz9vlbmf80vI/+oxgr+8HQNcGQvXH9xIatp3tXHZW4Es2dCVNggwa5oSvhxEBgD+spGYME+JvA8fHEstGsnnUnZ05U0GA+B3C+byKUXoGwSDeE5Owl4nfEny/GMZ5SKTK66a3JCbbnw6co4L2sGilq4aELhmBobadC7ZcuwzWob27uwzrlvlexKzse0y8RPE/iB6+qyuzNqw3Fj4VIpChQel6z2FpSrLDVYglSdCUP+z7Xa9AcZqqgKQQ3ZjIUecn0J69QicF6yz9mcJ9ocF/+LPq4JdUDENqUt78C0kOTFaMwA4BooJltc5nFrsnofWoHugqxUUGdhZdN04AXtUXGitldr2YsvQAl3hH8/ohuqqouZIcBYFUyLtV0byR3PgxLv7g0dstoIHXwsdu+53SrRX+VxFEVTgdnlyYOOBla7/C0TLnDw/AaC0h+RbbbA8z3b9fV8oNIcnQbOr/f/MyELa8TPvCqHVASvn1v/rbR7wOdCaABPBsLt8nDqQgCEDeZhmmNk3+Qw2jBNjqSZ59ccV9iVDqxiQhVkYX9sX5fP1NYIXWAgFY+gjWs/PpLpUK1ENJRKKHcP3VTiqOaT/CFA/VaqNz9UZ2xywBBscuTKrripOWIeRxpLtKmQpvaQr2jzcP216ke9jluGbMPFIh2DSB1z6oAmZRaynHK6bAEQWmBCNHEIhsO7BCr6aA0hCjUD1BCCwtAzZWUwgV3aXNSa4hFP79Uoxk6MCFCBD1wWUPyjJKQD6FZzliqw5VmZGes9OQIvZSLrT4fbYhok+8ppzCh6zmE1LkZ1y95swZFdqhj/a56PLR+gQKhy6EiUMKGZuBjmMnq3y4vUGC7XSRzibxnN7FTYqbtes5aPD9fcotmRkrm+lR2wSmJODohFuZhzl9WV+k4yOaZx7zhMLztdlZuOmREf5ZlzcKlJpBqt4BGcdLk0ek7kJFIJ+fp28c3SLYWnXIEwrLavno0dU+v0vPnXN40N+DYc+xv06W9wQmKuQNHyq4a8ON7rfnHtRDhrJPVQqE0miG6gFCqobcayIBozEfJqVdqDK17qjxzBwT+3FBIqfBUKsfuX9EZ/W2aur32KsHCDxMjkvFiMC6id6y/VhZOMbeGgtgtz94Wg6ExRk9ey33+ESoXs6PBzI1HVJHUwwQheMCcbAt5JLB7K/ZUw8BrClsaEULjPRYj9Xy8NHMEPgysFofqR8yAXJaQbTI1F2CwhMVDgkeoCrMxsBcpgFUfRKGtmX3ytB6IF4fBMKirmevO8e3J8ivzuGOScx7/yz1j4RLgbnHKrCYtGxCffbwDPjLoSix/czwhfU4rPGUSqwaXZJHMYoQpmXzrrpNs+8mhVR6HycYv51Ur2GGEWQUJlN7vpoY0QQyiMpll+l4ps0KTSdLou4WIhxYbuoDBq6/tzx4JzcOFLSe9gH4UfE8MDD1cmn/i3yWTED/ii4QMe1L1/3WJDoOHuvCDJd8G24cG11XyRGv/HrhzaF8Roj/OnkY4V2NRWNePPhM8UWmueow0RsW3gG3Zbai+pkF07uYp269SGNv51E2utgpA8VB3fKcqhd03CSFJ4Ut8hdKoxaHy8FEm/ockw9478z5D/da88FiIorJXMylTtoj/DrFTsSel5MdtIsJDdwfyLRiar98l1H7vGgcqEM1DkBgf9EINM4HmRxG/WPr9VcfW0Kbr2ugJ0j5jKanYb7dEqywjCd00wg6wbX/f4ez8GKyws1+eG+lnN4fWQWW+riOGtl2t6t+P6cWzcJbz3g1KA+dcBtHSVCA87f4gukbkSNlk/QyQY5sih0Zuq0wEhkhB8+zdlFMxcSONDsDsxlHzorKtaGyhLZJDPzNbaWYB0vM31Vqt+xHFX5xIpYhNVgnoy1FfBWgsnrb1LOAHCFiY7OCNJvZlC9pyppJ1rK3s+2Lt/ID91nBPueZLXLb+JLgWagr288FqFun4RudS+8lej6NztkYXAgI2x/511VD6zmeJVbFFRHLeoFoYqZ7KTUnAGQKRk/NZie41dn4AQuxV9FRRAUGBEjjQ6xzzbCc4/FVsE9fcaAgVP2FNhJQv28+VgqnMPAVf8o+S4FFiPJrYsCQFTKxQvKt8gVkZNsU4XdRF7LkaeMcLKJ/cbyKhcBkxUHhXbUfW2Ds6ub8Q62t9tPGzMb0ZAMDPbArWBMvNxHjAK9FMgaJ0qNLQdUX3lVFOac2awQPynHdbtPF8YqpO7j0XwR58RVRrEtN//zulVvhHG2yMUa9igC29FWAfvIkvgmpMBDkJq6XnHyt0LgBYdOiGTCrV+6ys+lNYiqT8vHy0EOLVlqFDVCHrzPJLd6l6ZbzcLQX4VotGsTzQGvFYTDiItuUmybSGdqmkrgyGJxchl8ptOU3w/wyvqRp8ltDck3sWMvIuJckjP23hCO2NCFqfKcz96OtBxpwUSlhJmlScyk3iIgdFbHh/gItBTH11qk5xwcRJAsrUvXgTadi5ytGsruEDu9SIMk52CO+DwCwp4uBvWqmk1NpiHcWPDyNcOgHImDUZI+5Y4bB5wOqsrgIPnfhL6P6DGExMaOZaDOjxQoL5i4WTU1Ag3WPMDQcmOxY6L0Y+tcvS1ezM0D3Gcad+t1bbDfU00Zpj51G6JrGB/wizefXGBHWFsMjkBpbiO3BKJ4BxnA4/7uS8SxiQM72EW1vWP+1qVSVgUmMw6d3cbhYB+yBHC1SUNSdCo7GwYReRpVXNwEA/lpvokm8a+RfCGZCBobEHRcC//Mv2ZZAf91qb1jigiorYB9WQ3L2NMxui/nERmZkcR/kU7inQmCSwkB7aP8qHuM3mIvH5SPo27sq/k7pY1GeYwqAUQOZtImEhqC2+NKp5Z2+pBJSCkV4Ib4W4DW8kvYD085u/MOWYw35FZXtPsUFapNjHXX1ZxHl/miVBlQthZU1bzyeTVeeGBF0lExxGeFegO+RxL2t/OlyamDjHkEbIeciPKasdWAVLNUTLITK7yGKd2oR0UuXXue8aiVWGJqkxXKcUhiXgBknGT3VJZeRRdotaWupgkDw8OVUGrxHXk+lXhD1LTrQDjdS1xC3P3g7jy+LQr4j1NOINEAgZv0qmAxrCQYZGZmx6DRbtGqJUb++0H90TYOwvWsTMGx0Aa+FyQkxBc2jwPLpd+hy6y5ofbSEwKuAAAAAAAAAAAHh3I0QWMct5WSFzGHaIBvBzKq+4nOZh11uxjlvKyQuYw7RAN4OZVX3E5zMOut2Mct5WSFzGHaIBvBzKq+4nOZh11uxjlvY4cwAAAAAAAAAAAAC4uAAAAAAF79bAAAAAAAfKlf39/f39/f39/f39/f39/f39/f39/f39/f4KJGtgAAAAAAAALVyoAAAAAAKNqiinGb0teCD24/tba3l/Z+cSnxMDoPhaNnh56yw4GPt9/6u3bt27du3bt27du3bt27du3bt27du3bt27du3bt27du3bt27du3bt27du3dsXZUoozwPvprqS5O8EKzPkKiIcfX3V6Az9WIrM2F1LKHPoVJ8GAbc0u4uXS+E1wAxA9NIA312x5Wu/SvWhfJIuMZHR9ZPH9e7+ep7UECV1ZWA5UCvuTaKkqiWr9rt06QUYIDqogQd6NIigSLEgNjijc/JvzAiDnPv6pgtBRzHZGYDUlY3z67x1HoCn2+nKdnKdnKdnKdnKdnKdnKdnKdnKdnKdnKdcomhurYjpa5hq6NC0O+dXZJ+Aim/VUmZbSc46QSp18oOhGoRLWG6JmgekXn1xDtGzswSCCi2NADHv/fRKH06/VNxax2pitkKFMjqEzWMdK9VXXvaFShotNSJ5OHdiC0bnBgkbPFHuR+ePc7eFK1RG/5D/OLGS/pK3//s3CbiZFGmclHHqGUSSCLoypE+6ZulTa4Zh0TMjVk03cA/3usumyQO5Q/GRqznTQLdbz2A5GcKFqQiQXkFPLc7JrA+mfDJUwhhLl4pK8vSs7aeFipyZabAEKfmOjm7UiWYLsImRN+fGc9iGx6wxY3tPEshc/kYijKhREAAAAAAq+Id6tGA2BLMNFD36LQ6RWtpaxhKDE5GBrFP4Jac2wvrlUN1Kn0FO/1YC/g+39oE3l5NN12Sd41j4vQ6ykv2yVOyI+ZXIcXlE2U0ZHKoO28bxyoO8iaHKPWNmdWehpwGFfebWK9QptWO92jPAAAAAAAjtZmc/qoNMfFtvRz9BwBtUq068WzcWlpYiro7sOPsO6U7XZehZYFjkPis+oMR18/K7ZcsxjGk+cQ1pHeDSleq88TT8QLkum0AAAAAAFmhVFWFbog0nRxLiTHI/e+18bfUN1/ySR5omyLzrqVQx5x8PNG7OGUfGA9KuA1Kwo9uRkgYK6ivbB0DN5gXLvC2HofHjSSqOQAAAAAADiEXnNbEU3kOsSMjPhgzuWdShne9CsOCuGD0C2OfNJ3scef6vuQtpIlUxmwv/5tO/bDb+aqMOgSElwNnDhkxf8ksdBFYaubGdEG1/Z3JduAAAAAADwwufeLZmDTkbjyK7JgzGVbb9V/3kre/Xa9Wm5/373N1RVudJRp1hveiMsf4z+81r2WHND1UBM/uEGA1kLvZRxV3nDTyHQmMQp+z7MAAAAAAQqdhka+v1N01eAv8yi5qTvyUw8t1uEuD5RUrwwGEOT+4nmrNUmvuK0tsqlG6iViC6/tNmHNNGkYhDdDt9CBNIljV8ZN8WhPsA3nCh182f7wAAAAAARIXuVMmBoqnUPEZLhudbxjEfQUrR4K+zmwbOkZ106o+gho1yY2hNz/zsYDxPvSsvDiTZvbWCVY24IIw1NHemiZTPIxa53EXudIgnyUV2yUbJ3W5iZ/CG6xsKK2pk5vK1ZGIAAAAAAq51pPqIeBRRLu4b+ulQIMGBIplR2z88MmGRMPf/MH//qzfuaJkavNp/LWvnXtuDy7QAAAAAAABFWElGugAAAEV4aWYAAElJKgAIAAAABgASAQMAAQAAAAEAAAAaAQUAAQAAAFYAAAAbAQUAAQAAAF4AAAAoAQMAAQAAAAIAAAATAgMAAQAAAAEAAABphwQAAQAAAGYAAAAAAAAASAAAAAEAAABIAAAAAQAAAAYAAJAHAAQAAAAwMjEwAZEHAAQAAAABAgMAAKAHAAQAAAAwMTAwAaADAAEAAAD//wAAAqAEAAEAAABcAwAAA6AEAAEAAACyAwAAAAAAAA==";
+
+
+
         const DEFAULT_CFG = {
             name: "Ayoub",
             pin: "12345",
@@ -107,403 +215,192 @@
                 { id: 10, from_iban: "BE39 0004 6429 2419", to_name: "PROXIMUS", to_iban: "BE44 0689 0123 4567", amount: -29.00, type: "Domiciliation", date: "2025-01-15", seq: 16 }
             ]
         };
- 
-        async function fetchCfg() {
-            try {
-                const r = await fetch('/api/cfg');
-                if (r.ok) { const d = await r.json(); if (d && d.accounts && d.pin) return d; }
-            } catch { }
-            return JSON.parse(JSON.stringify(DEFAULT_CFG));
-        }
- 
-        async function saveCfgToServer(cfg) {
-            const r = await fetch('/api/cfg', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: adminToken, cfg })
-            });
-            if (r.status === 403) { adminToken = ''; localStorage.removeItem(ADMIN_AUTH_KEY); alert('Session expirée. Reconnecte-toi.'); window.location.reload(); return; }
-            if (!r.ok) throw new Error('Server error');
-        }
- 
-        const inp = { width: '100%', background: '#080b0f', border: '1px solid #1e2530', borderRadius: 8, padding: '9px 12px', color: '#e2e8f0', fontSize: 13, outline: 'none', transition: 'border-color .15s' };
-        const sel = { ...inp };
- 
-        function Field({ label, value, onChange, type = 'text' }) {
-            return (
-                <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', color: '#4a5568', textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>
-                    <input type={type} value={value ?? ''} onChange={e => onChange(type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value)}
-                        style={inp}
-                        onFocus={e => e.target.style.borderColor = '#00965E'}
-                        onBlur={e => e.target.style.borderColor = '#1e2530'} />
-                </div>
-            );
-        }
- 
-        function GeneralTab({ cfg, setCfg }) {
-            return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ background: '#0d1117', border: '1px solid #1e2530', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                        <div style={{ fontSize: 11, color: '#4a5568', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' }}>Identité</div>
-                        <Field label="Prénom affiché" value={cfg.name} onChange={v => setCfg(c => ({ ...c, name: v }))} />
-                        <Field label="Code PIN (5 chiffres)" value={cfg.pin} onChange={v => setCfg(c => ({ ...c, pin: v }))} />
-                    </div>
-                    <div style={{ background: '#0a120c', border: '1px solid #1a3020', borderRadius: 10, padding: '12px 16px' }}>
-                        <div style={{ fontSize: 11, color: '#2d7a45', marginBottom: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>Aperçu</div>
-                        <div style={{ fontSize: 13, color: '#4ade80' }}>Prénom : <span style={{ color: '#86efac', fontWeight: 600 }}>{cfg.name || '—'}</span></div>
-                        <div style={{ fontSize: 13, color: '#4ade80', marginTop: 6 }}>PIN : <span style={{ color: '#86efac', fontWeight: 600, letterSpacing: 4 }}>{'•'.repeat(String(cfg.pin).length)}</span></div>
-                    </div>
-                </div>
-            );
-        }
- 
-        function AccountsTab({ cfg, setCfg }) {
-            const add = () => {
-                const newId = Math.max(...cfg.accounts.map(a => a.id), 0) + 1;
-                setCfg(c => ({ ...c, accounts: [...c.accounts, { id: newId, label: '', type: 'Épargne', iban: '', suffix: '', balance: 0, currency: 'EUR' }] }));
-            };
-            const upd = (id, field, val) => setCfg(c => ({ ...c, accounts: c.accounts.map(a => a.id === id ? { ...a, [field]: val } : a) }));
-            const del = (id) => { if (!confirm('Supprimer ce compte ?')) return; setCfg(c => ({ ...c, accounts: c.accounts.filter(a => a.id !== id) })); };
- 
-            return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {cfg.accounts.map(acc => (
-                        <div key={acc.id} className="fade-in" style={{ background: '#0d1117', border: `1px solid ${acc.type === 'À vue' ? '#1a3020' : '#1e2530'}`, borderRadius: 12, padding: 16 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                    <span style={{ fontSize: 10, color: '#4a5568', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Compte #{acc.id}</span>
-                                    <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', background: acc.type === 'À vue' ? '#00965E22' : '#3b82f622', color: acc.type === 'À vue' ? '#4ade80' : '#7dd3fc', border: `1px solid ${acc.type === 'À vue' ? '#00965E44' : '#3b82f644'}` }}>{acc.type || '—'}</span>
-                                </div>
-                                <button onClick={() => del(acc.id)} style={{ fontSize: 11, color: '#ef4444', background: '#1f0707', border: 'none', padding: '3px 10px', borderRadius: 6, cursor: 'pointer' }}>Supprimer</button>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                <div style={{ gridColumn: '1 / -1' }}>
-                                    <Field label="Titulaire" value={acc.label} onChange={v => upd(acc.id, 'label', v)} />
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', color: '#4a5568', textTransform: 'uppercase', marginBottom: 5 }}>Type</div>
-                                    <select value={acc.type} onChange={e => upd(acc.id, 'type', e.target.value)} style={sel} onFocus={e => e.target.style.borderColor = '#00965E'} onBlur={e => e.target.style.borderColor = '#1e2530'}>
-                                        <option>À vue</option>
-                                        <option>Épargne</option>
-                                    </select>
-                                </div>
-                                <Field label="Devise" value={acc.currency} onChange={v => upd(acc.id, 'currency', v)} />
-                                <div style={{ gridColumn: '1 / -1' }}>
-                                    <Field label="IBAN" value={acc.iban} onChange={v => upd(acc.id, 'iban', v)} />
-                                </div>
-                                <Field label="Suffix (4 derniers)" value={acc.suffix} onChange={v => upd(acc.id, 'suffix', v)} />
-                                <Field label="Solde (EUR)" value={acc.balance} onChange={v => upd(acc.id, 'balance', parseFloat(v) || 0)} type="number" />
-                            </div>
-                        </div>
-                    ))}
-                    <button onClick={add} style={{ background: 'none', border: '1px dashed #1e2530', borderRadius: 12, padding: 14, color: '#2d7a45', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all .15s', width: '100%' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#00965E'; e.currentTarget.style.background = '#0a120c'; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e2530'; e.currentTarget.style.background = 'none'; }}>
-                        + Ajouter un compte
-                    </button>
-                </div>
-            );
-        }
- 
-        function TransactionsTab({ cfg, setCfg }) {
-            const add = () => {
-                const newId = Math.max(...cfg.seedTransfers.map(t => t.id), 0) + 1;
-                setCfg(c => ({ ...c, seedTransfers: [{ id: newId, from_iban: c.accounts[0]?.iban || '', to_name: '', to_iban: '', bic: '', amount: 0, type: 'Virement instantané en euros', date: new Date().toISOString().split('T')[0], seq: newId }, ...c.seedTransfers] }));
-            };
-            const upd = (id, field, val) => setCfg(c => ({ ...c, seedTransfers: c.seedTransfers.map(t => t.id === id ? { ...t, [field]: (field === 'amount' || field === 'seq') ? parseFloat(val) || 0 : val } : t) }));
-            const del = (id) => { if (!confirm('Supprimer ?')) return; setCfg(c => ({ ...c, seedTransfers: c.seedTransfers.filter(t => t.id !== id) })); };
- 
-            const favOptions = useMemo(() => {
-                const seen = new Set();
-                const list = [];
-                cfg.accounts.forEach(a => {
-                    if (!seen.has(a.label)) { seen.add(a.label); list.push({ name: a.label, iban: a.iban, own: true }); }
-                });
-                cfg.seedTransfers.forEach(t => {
-                    if (t.to_name && !seen.has(t.to_name)) { seen.add(t.to_name); list.push({ name: t.to_name, iban: t.to_iban || '' }); }
-                });
-                return list;
-            }, [cfg.accounts, cfg.seedTransfers]);
- 
-            const fromOptions = useMemo(() => cfg.accounts.map(a => ({ iban: a.iban, label: `${a.label} ···· ${a.suffix}` })), [cfg.accounts]);
- 
-            return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <button onClick={add} style={{ background: '#00965E', border: 'none', borderRadius: 10, padding: 12, color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background .15s', letterSpacing: '.04em', WebkitTapHighlightColor: 'transparent' }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#007a4e'}
-                        onMouseLeave={e => e.currentTarget.style.background = '#00965E'}>
-                        + Nouvelle transaction
-                    </button>
-                    {cfg.seedTransfers.map(tx => (
-                        <div key={tx.id} className="fade-in" style={{ background: '#0d1117', border: `1px solid ${tx.amount >= 0 ? '#1a3020' : '#1e2530'}`, borderRadius: 12, padding: 16 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <span style={{ fontSize: 14, fontWeight: 800, color: tx.amount >= 0 ? '#4ade80' : '#f87171' }}>
-                                        {tx.amount >= 0 ? '+' : ''}{tx.amount} EUR
-                                    </span>
-                                    <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', background: tx.amount >= 0 ? '#4ade8022' : '#f8717122', color: tx.amount >= 0 ? '#4ade80' : '#f87171', border: `1px solid ${tx.amount >= 0 ? '#4ade8044' : '#f8717144'}` }}>
-                                        {tx.amount >= 0 ? 'Crédit' : 'Débit'}
-                                    </span>
-                                </div>
-                                <button onClick={() => del(tx.id)} style={{ fontSize: 11, color: '#ef4444', background: '#1f0707', border: 'none', padding: '3px 10px', borderRadius: 6, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>Supprimer</button>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
- 
-                                <div>
-                                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', color: '#4a5568', textTransform: 'uppercase', marginBottom: 5 }}>Bénéficiaire</div>
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        <input
-                                            value={tx.to_name}
-                                            onChange={e => upd(tx.id, 'to_name', e.target.value)}
-                                            placeholder="Nom..."
-                                            style={{ ...inp, flex: 1, minWidth: 0 }}
-                                            onFocus={e => e.target.style.borderColor = '#00965E'}
-                                            onBlur={e => e.target.style.borderColor = '#1e2530'}
-                                        />
-                                        <select
-                                            value=""
-                                            onChange={e => {
-                                                const idx = parseInt(e.target.value);
-                                                if (isNaN(idx)) return;
-                                                const f = favOptions[idx];
-                                                upd(tx.id, 'to_name', f.name);
-                                                if (f.iban) upd(tx.id, 'to_iban', f.iban);
-                                            }}
-                                            style={{ ...sel, width: 'auto', minWidth: 44, paddingLeft: 10, paddingRight: 10, flexShrink: 0, color: '#4ade80', borderColor: '#1a3020', background: '#0a120c', cursor: 'pointer', fontSize: 15 }}
-                                        >
-                                            <option value="" disabled>★</option>
-                                            {favOptions.map((f, i) => (
-                                                <option key={i} value={i}>{f.own ? '⬡ ' : ''}{f.name}{f.iban ? ' — ' + f.iban.slice(-9) : ''}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    {tx.to_name && (
-                                        <div style={{ marginTop: 6 }}>
-                                            <input
-                                                value={tx.to_iban}
-                                                onChange={e => upd(tx.id, 'to_iban', e.target.value)}
-                                                placeholder="IBAN bénéficiaire (optionnel)"
-                                                style={{ ...inp }}
-                                                onFocus={e => e.target.style.borderColor = '#00965E'}
-                                                onBlur={e => e.target.style.borderColor = '#1e2530'}
-                                            />
-                                        </div>
-                                    )}
-                                    {tx.to_name && (
-                                        <div style={{ marginTop: 6 }}>
-                                            <input
-                                                value={tx.bic || ''}
-                                                onChange={e => upd(tx.id, 'bic', e.target.value.toUpperCase())}
-                                                placeholder="BIC bénéficiaire (optionnel — auto-rempli si virement ≥ 1000 EUR)"
-                                                maxLength={11}
-                                                style={{ ...inp, fontFamily: 'monospace', letterSpacing: '.04em' }}
-                                                onFocus={e => e.target.style.borderColor = '#00965E'}
-                                                onBlur={e => e.target.style.borderColor = '#1e2530'}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                    <Field label="Montant (– = débit)" value={tx.amount} onChange={v => upd(tx.id, 'amount', v)} type="number" />
-                                    <Field label="Date (AAAA-MM-JJ)" value={tx.date} onChange={v => upd(tx.id, 'date', v)} />
-                                </div>
- 
-                                <div>
-                                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', color: '#4a5568', textTransform: 'uppercase', marginBottom: 5 }}>Type</div>
-                                    <select value={tx.type} onChange={e => upd(tx.id, 'type', e.target.value)} style={sel} onFocus={e => e.target.style.borderColor = '#00965E'} onBlur={e => e.target.style.borderColor = '#1e2530'}>
-                                        <option>Virement instantané en euros</option>
-                                        <option>Virement entre comptes</option>
-                                        <option>Paiement par carte</option>
-                                        <option>Domiciliation</option>
-                                        <option>Virement reçu</option>
-                                    </select>
-                                </div>
- 
-                                <div>
-                                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', color: '#4a5568', textTransform: 'uppercase', marginBottom: 5 }}>Depuis le compte</div>
-                                    <select
-                                        value={tx.from_iban}
-                                        onChange={e => upd(tx.id, 'from_iban', e.target.value)}
-                                        style={sel}
-                                        onFocus={e => e.target.style.borderColor = '#00965E'}
-                                        onBlur={e => e.target.style.borderColor = '#1e2530'}
-                                    >
-                                        {fromOptions.map(o => <option key={o.iban} value={o.iban}>{o.label}</option>)}
-                                        {!fromOptions.find(o => o.iban === tx.from_iban) && tx.from_iban && (
-                                            <option value={tx.from_iban}>{tx.from_iban}</option>
-                                        )}
-                                    </select>
-                                </div>
- 
-                                {tx.type === 'Paiement par carte' && (
-                                    <Field label="Numéro de carte (ex: 4871 04•• •••• 7560)" value={tx.card || ''} onChange={v => upd(tx.id, 'card', v)} />
-                                )}
-                                <Field label="N° de séquence" value={tx.seq || ''} onChange={v => upd(tx.id, 'seq', v)} type="number" />
-                            </div>
-                        </div>
+        let CFG = DEFAULT_CFG;
+
+        const fmt = n => new Intl.NumberFormat('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+        const fmtSigned = n => { const s = fmt(Math.abs(n)); return n < 0 ? `–${s}` : `+${s}`; };
+        const fmtLong = str => new Date(str + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'long', year: 'numeric' });
+        const fmtDayMon = str => { const d = new Date(str + 'T12:00:00'); return { day: d.getDate(), mon: d.toLocaleDateString('fr-BE', { month: 'short' }).replace('.', '') }; };
+
+        async function serverLoad() {
+            try {
+                const [cfgRes, stateRes] = await Promise.all([
+                    fetch('/api/cfg').catch(() => null),
+                    fetch('/api/state').catch(() => null)
+                ]);
+                const cfgJson = cfgRes && cfgRes.ok ? await cfgRes.json() : null;
+                if (cfgJson && cfgJson.accounts && cfgJson.pin) CFG = cfgJson;
+                const stateJson = stateRes && stateRes.ok ? await stateRes.json() : null;
+                const transfers = (stateJson && stateJson.transfers) ? stateJson.transfers : CFG.seedTransfers;
+                const initBal = {};
+                CFG.accounts.forEach(a => { initBal[a.id] = a.balance; });
+                const balances = (stateJson && stateJson.balances) ? { ...initBal, ...stateJson.balances } : initBal;
+                return { transfers, balances };
+            } catch (e) {
+                const initBal = {};
+                CFG.accounts.forEach(a => { initBal[a.id] = a.balance; });
+                return { transfers: CFG.seedTransfers, balances: initBal };
+            }
+        }
+
+        let _pendingSave = null;
+        function serverSave(transfers, balances) {
+            if (_pendingSave) clearTimeout(_pendingSave);
+            _pendingSave = setTimeout(() => {
+                fetch('/api/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transfers, balances }) }).catch(e => console.warn('Save failed:', e));
+            }, 400);
+        }
+
+        function BottomNav({ active = 'accueil' }) {
+            const tabs = [
+                {
+                    id: 'accueil', l: 'Accueil', icon: a => (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={a ? '#00965E' : '#8e8e93'} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 12l-2 0l9 -9l9 9l-2 0" />
+                            <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+                            <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
+                        </svg>
+                    )
+                },
+                {
+                    id: 'services', l: 'Mes services', badge: 15, icon: a => (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={a ? '#00965E' : '#8e8e93'} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
+                            <path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" />
+                            <path d="M9 12l6 0" /><path d="M9 16l6 0" />
+                        </svg>
+                    )
+                },
+                {
+                    id: 'offre', l: 'Offre', icon: a => (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={a ? '#00965E' : '#8e8e93'} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M4.5 4.5m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+                            <path d="M7.5 12v.5" />
+                            <rect x="12" y="4" width="8" height="8" rx="1" />
+                            <path d="M7.5 7.5v.01" />
+                            <rect x="4" y="12" width="8" height="8" rx="1" />
+                            <path d="M17.5 7.5v.01" />
+                            <path d="M16 16h2" /><path d="M17 15v2" />
+                        </svg>
+                    )
+                },
+                {
+                    id: 'aide', l: 'Aide et contact', icon: a => (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={a ? '#00965E' : '#8e8e93'} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                            <path d="M12 17l0 .01" />
+                            <path d="M12 13.5a1.5 1.5 0 0 1 1 -1.5a2.6 2.6 0 1 0 -3 -4" />
+                        </svg>
+                    )
+                },
+                {
+                    id: 'params', l: 'Paramètres', icon: a => (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={a ? '#00965E' : '#8e8e93'} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                            <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                        </svg>
+                    )
+                },
+            ];
+            return (
+                <div style={{ background: 'white', borderTop: '1px solid #e5e5ea', display: 'flex', paddingBottom: 'max(8px, env(safe-area-inset-bottom, 8px))' }}>
+                    {tabs.map(n => (
+                        <button key={n.id} className="press" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 8, paddingBottom: 4, gap: 2, position: 'relative' }}>
+                            {n.badge && <span style={{ position: 'absolute', top: 5, left: '50%', transform: 'translateX(4px)', background: '#2DB34A', color: 'white', fontSize: 9, fontWeight: 700, borderRadius: 999, minWidth: 17, height: 17, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{n.badge}</span>}
+                            {n.icon(n.id === active)}
+                            <span style={{ fontSize: 10, color: n.id === active ? '#00965E' : '#8e8e93', fontWeight: n.id === active ? 600 : 400 }}>{n.l}</span>
+                        </button>
                     ))}
                 </div>
             );
         }
- 
-        function AdminPanel() {
-            const [cfg, setCfg] = useState(null);
-            const [savedCfg, setSavedCfg] = useState(null);
-            const [tab, setTab] = useState('general');
-            const [toast, setToast] = useState(null);
- 
-            const { useEffect } = React;
- 
-            useEffect(() => {
-                fetchCfg().then(d => { setCfg(d); setSavedCfg(JSON.stringify(d)); });
-            }, []);
- 
-            const showToast = (msg, color = '#00965E') => {
-                setToast({ msg, color });
-                setTimeout(() => setToast(null), 2500);
-            };
- 
-            const save = async () => {
-                try {
-                    await saveCfgToServer(cfg);
-                    setSavedCfg(JSON.stringify(cfg));
-                    showToast('✓ Sauvegardé');
-                } catch {
-                    showToast('Erreur serveur', '#ef4444');
-                }
-            };
- 
-            const reset = async () => {
-                if (!confirm('Reset la config par défaut ?')) return;
-                const d = JSON.parse(JSON.stringify(DEFAULT_CFG));
-                try {
-                    await saveCfgToServer(d);
-                    setCfg(d);
-                    setSavedCfg(JSON.stringify(d));
-                    showToast('Config réinitialisée', '#3b82f6');
-                } catch {
-                    showToast('Erreur serveur', '#ef4444');
-                }
-            };
- 
-            const logout = () => { adminToken = ''; localStorage.removeItem(ADMIN_AUTH_KEY); window.location.reload(); };
- 
-            const isModified = cfg && JSON.stringify(cfg) !== savedCfg;
- 
-            if (!cfg) return (
-                <div style={{ minHeight: '100vh', background: '#080b0f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ width: 28, height: 28, border: '2px solid #1e2530', borderTopColor: '#00965E', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
-                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+        function SplashScreen({ onDone }) {
+            useEffect(() => { const t = setTimeout(onDone, 1800); return () => clearTimeout(t); }, []);
+            return (
+                <div className="fixed inset-0 bg-white flex items-center justify-center splash-in">
+                    <img src="./logo.svg" width={150} style={{ objectFit: 'contain' }} alt="BNP" />
                 </div>
             );
- 
-            const tabs = [
-                ['general', 'Général'],
-                ['accounts', `Comptes (${cfg.accounts.length})`],
-                ['transfers', `Transactions (${cfg.seedTransfers.length})`],
-            ];
- 
+        }
+
+        function WelcomeScreen({ onConnect, onScanner }) {
             return (
-                <div style={{ minHeight: '100vh', background: '#080b0f', color: '#e2e8f0' }}>
-                    <div style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(8,11,15,.96)', backdropFilter: 'blur(16px)', borderBottom: '1px solid #1e2530' }}>
-                        <div style={{ maxWidth: 720, margin: '0 auto', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <div style={{ width: 28, height: 28, background: '#00965E', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                                </div>
-                                <span style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>Easy Banking Admin</span>
-                                {isModified && <span style={{ fontSize: 9, background: '#f59e0b18', color: '#f59e0b', border: '1px solid #f59e0b44', borderRadius: 4, padding: '2px 7px', fontWeight: 800, letterSpacing: '.06em' }}>NON SAUVEGARDÉ</span>}
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <button onClick={reset} style={{ background: 'none', border: '1px solid #1e2530', borderRadius: 8, padding: '7px 12px', color: '#718096', fontSize: 12, cursor: 'pointer', transition: 'all .15s' }}
-                                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#4a5568'; e.currentTarget.style.color = '#e2e8f0'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e2530'; e.currentTarget.style.color = '#718096'; }}>Reset</button>
-                                <button onClick={save} style={{ background: '#00965E', border: 'none', borderRadius: 8, padding: '7px 16px', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'background .15s', letterSpacing: '.03em' }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#007a4e'}
-                                    onMouseLeave={e => e.currentTarget.style.background = '#00965E'}>Sauvegarder</button>
-                                <button onClick={logout} title="Déconnexion" style={{ background: 'none', border: 'none', padding: '7px 8px', color: '#4a5568', cursor: 'pointer', borderRadius: 8, transition: 'color .15s', display: 'flex' }}
-                                    onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-                                    onMouseLeave={e => e.currentTarget.style.color = '#4a5568'}>
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
-                                </button>
-                            </div>
+                <div className="fixed inset-0 flex flex-col">
+                    <div className="absolute inset-0">
+                        <img src="./banner.png" className="w-full h-full object-cover object-center" alt="" />
+                        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,.18) 0%, rgba(0,0,0,.02) 30%, rgba(0,0,0,.32) 62%, rgba(0,0,0,.82) 100%)' }} />
+                    </div>
+                    <div className="absolute z-10 flex justify-center" style={{ top: 'max(52px, env(safe-area-inset-top, 52px))', left: 0, right: 0 }}>
+
+                        <img src="./logotransparent.svg" height={34} style={{ objectFit: 'contain' }}
+
+                            alt="BNP Paribas Fortis" />
+                    </div>
+                    <div className="absolute z-10 flex gap-4" style={{ top: 'max(54px, env(safe-area-inset-top, 54px))', right: 20 }}>
+                        <button className="press">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+                                <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
+                            </svg>
+                        </button>
+                        <button className="press">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round">
+                                <circle cx="5" cy="12" r="1.2" fill="white" /><circle cx="12" cy="12" r="1.2" fill="white" /><circle cx="19" cy="12" r="1.2" fill="white" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div className="relative z-10 flex-1 flex items-center justify-center">
+                        <div className="text-center">
+                            <p style={{ color: 'rgba(255,255,255,.85)', fontSize: 20, fontWeight: 300, letterSpacing: '.02em' }}>Bienvenue</p>
+                            <h1 style={{ color: 'white', fontWeight: 900, fontSize: 58, letterSpacing: '-.02em', textTransform: 'uppercase', lineHeight: 1.05 }}>{CFG.name}</h1>
                         </div>
-                        <div style={{ maxWidth: 720, margin: '0 auto', padding: '0 20px', display: 'flex', gap: 2 }}>
-                            {tabs.map(([id, lbl]) => (
-                                <button key={id} onClick={() => setTab(id)} style={{ padding: '10px 16px', fontSize: 12, fontWeight: tab === id ? 700 : 500, color: tab === id ? '#00965E' : '#718096', background: 'none', border: 'none', cursor: 'pointer', borderBottom: `2px solid ${tab === id ? '#00965E' : 'transparent'}`, transition: 'all .15s', letterSpacing: '.02em' }}>
-                                    {lbl}
+                    </div>
+                    <div className="relative z-10" style={{ background: 'rgba(255,255,255,.05)', backdropFilter: 'blur(22px)', WebkitBackdropFilter: 'blur(22px)', borderRadius: '26px 26px 0 0', borderTop: '1px solid rgba(255,255,255,.12)' }}>
+                        <div className="flex justify-around px-8 pt-5 pb-4">
+                            {[
+                                {
+                                    bg: '#2EA8A8', label: 'Scanner', onClick: onScanner, icon: (
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M4 8V6a2 2 0 0 1 2-2h2" />
+                                            <path d="M20 8V6a2 2 0 0 0-2-2h-2" />
+                                            <path d="M4 16v2a2 2 0 0 0 2 2h2" />
+                                            <path d="M20 16v2a2 2 0 0 1-2 2h-2" />
+                                        </svg>
+                                    )
+                                },
+                                {
+                                    bg: '#4D7FBD', label: 'Recevoir', icon: (
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                            <line x1="12" y1="5" x2="12" y2="19" />
+                                            <polyline points="19 12 12 19 5 12" />
+                                        </svg>
+                                    )
+                                },
+                                {
+                                    bg: '#00965E', label: 'Extra', icon: (
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <rect x="4" y="4" width="6" height="6" rx="1" />
+                                            <rect x="14" y="4" width="6" height="6" rx="1" />
+                                            <rect x="4" y="14" width="6" height="6" rx="1" />
+                                            <path d="M14 17h6" /><path d="M17 14v6" />
+                                        </svg>
+                                    )
+                                },
+                            ].map(b => (
+                                <button key={b.label} onClick={b.onClick} className="press flex flex-col items-center gap-2">
+                                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-md" style={{ background: b.bg }}>{b.icon}</div>
+                                    <span style={{ color: 'white', fontSize: 12, fontWeight: 500 }}>{b.label}</span>
                                 </button>
                             ))}
                         </div>
-                    </div>
-                    <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 20px 60px' }}>
-                        {tab === 'general' && <GeneralTab cfg={cfg} setCfg={setCfg} />}
-                        {tab === 'accounts' && <AccountsTab cfg={cfg} setCfg={setCfg} />}
-                        {tab === 'transfers' && <TransactionsTab cfg={cfg} setCfg={setCfg} />}
-                    </div>
-                    {toast && (
-                        <div className="fade-in" style={{ position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)', background: toast.color, color: 'white', padding: '11px 22px', borderRadius: 10, fontSize: 13, fontWeight: 600, boxShadow: '0 4px 24px rgba(0,0,0,.5)', whiteSpace: 'nowrap', zIndex: 9999 }}>
-                            {toast.msg}
-                        </div>
-                    )}
-                </div>
-            );
-        }
- 
-        function PasswordGate({ onAuth }) {
-            const [pwd, setPwd] = useState('');
-            const [err, setErr] = useState(false);
-            const [shake, setShake] = useState(false);
- 
-            const check = () => {
-                if (!pwd.trim()) return;
-                fetch('/api/admin-auth', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pwd })
-                }).then(r => r.json()).then(data => {
-                    if (data.token) {
-                        adminToken = data.token;
-                        localStorage.setItem(ADMIN_AUTH_KEY, data.token);
-                        onAuth();
-                    } else {
-                        setErr(true); setShake(true);
-                        setTimeout(() => { setErr(false); setShake(false); setPwd(''); }, 700);
-                    }
-                }).catch(() => {
-                    setErr(true); setShake(true);
-                    setTimeout(() => { setErr(false); setShake(false); setPwd(''); }, 700);
-                });
-            };
- 
-            return (
-                <div style={{ minHeight: '100vh', background: '#080b0f', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-                    <div style={{ width: '100%', maxWidth: 360 }}>
-                        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-                            <div style={{ width: 52, height: 52, background: '#00965E', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                            </div>
-                            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#e2e8f0', marginBottom: 6 }}>Admin Panel</h1>
-                            <p style={{ fontSize: 13, color: '#4a5568' }}>Easy Banking</p>
-                        </div>
-                        <div style={{ background: '#0d1117', border: '1px solid #1e2530', borderRadius: 16, padding: 24 }}>
-                            <div style={{ marginBottom: 14, animation: shake ? 'shake .55s ease' : 'none' }}>
-                                <input
-                                    type="password"
-                                    value={pwd}
-                                    onChange={e => { setPwd(e.target.value); setErr(false); }}
-                                    onKeyDown={e => e.key === 'Enter' && check()}
-                                    placeholder="Mot de passe"
-                                    autoFocus
-                                    style={{ width: '100%', background: '#080b0f', border: `1px solid ${err ? '#ef4444' : '#1e2530'}`, borderRadius: 10, padding: '13px 16px', color: '#e2e8f0', fontSize: 15, outline: 'none', transition: 'border-color .15s' }}
-                                />
-                            </div>
-                            {err && <p style={{ fontSize: 12, color: '#ef4444', textAlign: 'center', marginBottom: 12 }}>Mot de passe incorrect</p>}
-                            <button onClick={check} style={{ width: '100%', background: '#00965E', border: 'none', borderRadius: 10, padding: 13, color: 'white', fontSize: 15, fontWeight: 700, cursor: 'pointer', transition: 'background .15s', letterSpacing: '.02em' }}
-                                onMouseEnter={e => e.currentTarget.style.background = '#007a4e'}
-                                onMouseLeave={e => e.currentTarget.style.background = '#00965E'}>
+                        <div className="px-4" style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom, 20px))' }}>
+                            <button onClick={onConnect} className="press w-full rounded-2xl py-4 flex items-center justify-center gap-2.5 shadow-lg" style={{ background: '#2DB34A', color: 'white', fontSize: 17, fontWeight: 600 }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
                                 Se connecter
                             </button>
                         </div>
@@ -511,13 +408,1393 @@
                 </div>
             );
         }
- 
-        function App() {
-            const [authed, setAuthed] = useState(() => !!localStorage.getItem(ADMIN_AUTH_KEY));
-            if (!authed) return <PasswordGate onAuth={() => setAuthed(true)} />;
-            return <AdminPanel />;
+
+        function PinScreen({ onBack, onSuccess }) {
+            const [pin, setPin] = useState('');
+            const [shake, setShake] = useState(false);
+            const [err, setErr] = useState(false);
+            const N = 5;
+
+            const press = k => {
+                if (pin.length >= N) return;
+                const next = pin + k;
+                setPin(next); setErr(false);
+                if (next.length === N) {
+                    if (next === String(CFG.pin)) { setTimeout(onSuccess, 140); }
+                    else { setShake(true); setErr(true); setTimeout(() => { setShake(false); setPin(''); setErr(false); }, 650); }
+                }
+            };
+            const del = () => { setPin(p => p.slice(0, -1)); setErr(false); };
+
+            return (
+                <div className="fixed inset-0 flex flex-col screen-r" style={{ background: '#F2F2F7' }}>
+                    <div className="safe-top px-4 flex items-center relative pb-3">
+                        <button onClick={onBack} className="press flex items-center gap-1" style={{ color: '#00965E', fontSize: 16 }}>
+                            <svg width="9" height="16" viewBox="0 0 9 16" fill="none"><path d="M8 1L1 8l7 7" stroke="#00965E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                            Retour
+                        </button>
+                        <h1 className="absolute inset-x-0 text-center pointer-events-none" style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a' }}>Se connecter</h1>
+                    </div>
+                    <div className="text-center mt-10 px-8">
+                        <p style={{ fontSize: 15, color: '#1a1a1a' }}>Introduisez votre code Easy Banking</p>
+                    </div>
+                    <div className="flex justify-center gap-7 mt-8" style={{ animation: shake ? 'shake .55s ease' : 'none' }}>
+                        {Array.from({ length: N }).map((_, i) => (
+                            i < pin.length
+                                ? <span key={i} style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', background: err ? '#E53935' : '#1a1a1a', transition: 'background .15s' }} />
+                                : <span key={i} style={{ display: 'inline-block', width: 30, height: 3, borderRadius: 2, background: err ? '#E53935' : '#C0C0C8', transition: 'background .15s' }} />
+                        ))}
+                    </div>
+                    <div className="flex-1" />
+                    <div className="px-5">
+                        {[['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9']].map((row, ri) => (
+                            <div key={ri} className="grid grid-cols-3 mb-1">
+                                {row.map(k => (
+                                    <button key={k} onPointerDown={() => press(k)} className="press flex items-center justify-center" style={{ height: 72 }}>
+                                        <span style={{ fontSize: 36, fontWeight: 300, color: '#00965E', lineHeight: 1 }}>{k}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        ))}
+                        <div className="grid grid-cols-3 mb-1">
+                            <div />
+                            <button onPointerDown={() => press('0')} className="press flex items-center justify-center" style={{ height: 72 }}>
+                                <span style={{ fontSize: 36, fontWeight: 300, color: '#00965E', lineHeight: 1 }}>0</span>
+                            </button>
+                            <button onPointerDown={del} className="press flex items-center justify-center" style={{ height: 72 }}>
+                                <svg width="26" height="20" viewBox="0 0 26 20" fill="none"><path d="M10 1H24a1.5 1.5 0 011.5 1.5v15A1.5 1.5 0 0124 19H10L1 10z" stroke="#1a1a1a" strokeWidth="1.6" strokeLinejoin="round" /><path d="M17 7l-5 6M12 7l5 6" stroke="#1a1a1a" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                            </button>
+                        </div>
+                        <div className="text-center pt-1" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}>
+                            <button className="press" style={{ color: '#00965E', fontSize: 15 }}>Code oublié ?</button>
+                        </div>
+                    </div>
+                    <div className="flex justify-center pb-2"><div style={{ width: 112, height: 4, borderRadius: 2, background: 'rgba(0,0,0,.15)' }} /></div>
+                </div>
+            );
         }
- 
+
+        function Dashboard({ transfers, balances, onAccountClick, onTransfer, onScanner }) {
+            const accounts = CFG.accounts.map(a => ({ ...a, balance: balances[a.id] ?? a.balance }));
+            const recent = transfers.slice(0, 3);
+            const actions = [
+                {
+                    bg: '#2DB34A', label: 'Virement', onClick: onTransfer, icon: (
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="19" x2="12" y2="5" />
+                            <polyline points="5 12 12 5 19 12" />
+                        </svg>
+                    )
+                },
+                {
+                    bg: '#2EA8A8', label: 'Scanner', onClick: onScanner, icon: (
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M4 8V6a2 2 0 0 1 2-2h2" />
+                            <path d="M20 8V6a2 2 0 0 0-2-2h-2" />
+                            <path d="M4 16v2a2 2 0 0 0 2 2h2" />
+                            <path d="M20 16v2a2 2 0 0 1-2 2h-2" />
+                        </svg>
+                    )
+                },
+                {
+                    bg: '#4D7FBD', label: 'Recevoir', onClick: () => { }, icon: (
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <polyline points="19 12 12 19 5 12" />
+                        </svg>
+                    )
+                },
+            ];
+            return (
+                <div className="fixed inset-0 flex flex-col screen-r" style={{ background: '#F2F2F7' }}>
+                    <div className="flex-1 scroll-ios">
+                        <div style={{ background: 'linear-gradient(to bottom, #8ecfa0 0%, #c8ebcf 55%, #F2F2F7 100%)' }}>
+                            <div className="px-4 pb-2 safe-top">
+                                <h1 style={{ color: '#1a1a1a', fontSize: 19, fontWeight: 600, textAlign: 'center', paddingTop: 4 }}>Bonjour {CFG.name}</h1>
+                            </div>
+                            <div className="mx-3 mt-3 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm" style={{ background: '#FFF8E1' }}>
+                                <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#E53935' }}>
+                                    <span style={{ color: 'white', fontWeight: 700, fontSize: 10 }}>!</span>
+                                </div>
+                                <p style={{ fontSize: 13, color: '#1a1a1a', lineHeight: 1.45, flex: 1 }}>Les données de votre carte sont disponibles dans l'app. Vous pouvez l'utiliser dès maintenant pour payer e...</p>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+                            </div>
+                            <div className="flex gap-3 px-3 mt-4 overflow-x-auto pb-1">
+                                {actions.map((b, i) => (
+                                    <button key={i} onClick={b.onClick} className="press flex flex-col items-center gap-1.5 flex-shrink-0" style={{ minWidth: 72 }}>
+                                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm" style={{ background: b.bg, border: b.border ? '1px solid #eee' : 'none' }}>
+                                            {b.imgSrc
+                                                ? <img src={b.imgSrc} width="30" height="30" style={{ objectFit: 'contain' }} alt={b.label} />
+                                                : b.icon}
+                                        </div>
+                                        <span style={{ fontSize: 11, fontWeight: 500, color: '#1a1a1a' }}>{b.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="px-3 mt-5">
+                            <div className="flex justify-between items-center mb-3">
+                                <h2 style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a' }}>Favoris</h2>
+                                <button style={{ fontSize: 14, color: '#00965E' }}>Tout montrer</button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2.5">
+                                {accounts.map(acc => (
+                                    <button key={acc.id} onClick={() => onAccountClick(acc)} className="press bg-white rounded-2xl p-4 text-left shadow-sm border border-gray-100 flex flex-col">
+                                        <p style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a' }} className="truncate">{acc.label}</p>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            {acc.type === 'À vue' && <span style={{ background: '#00965E', color: 'white', fontSize: 8, fontWeight: 700, padding: '2px 5px', borderRadius: 4 }}>H!</span>}
+                                            <p style={{ fontSize: 11, color: '#888' }}>{acc.type} ···· {acc.suffix}</p>
+                                        </div>
+                                        <p style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', marginTop: 12, lineHeight: 1 }}>
+                                            {fmt(acc.balance)} <span style={{ fontSize: 12, fontWeight: 400, color: '#aaa' }}>{acc.currency}</span>
+                                        </p>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        {[
+                            {
+                                l: 'Investissements', icon: (
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00965E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M3 17l4 -4l4 4l4 -6l4 3" /><path d="M14 7l2 0" /><path d="M20 7l0 2" />
+                                    </svg>
+                                )
+                            },
+                            {
+                                l: 'Analyse de budget', icon: (
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00965E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                                        <path d="M12 7v5l3 3" />
+                                    </svg>
+                                )
+                            },
+                        ].map(r => (
+                            <div key={r.l} className="mx-3 mt-2">
+                                <button className="press w-full bg-white rounded-2xl px-4 py-4 flex items-center gap-3 shadow-sm border border-gray-100">
+                                    {r.icon}
+                                    <span style={{ fontSize: 15, color: '#1a1a1a', flex: 1, textAlign: 'left' }}>{r.l}</span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+                                </button>
+                            </div>
+                        ))}
+                        {recent.length > 0 && (
+                            <div className="px-3 mt-4 mb-3">
+                                <h2 style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>Derniers virements</h2>
+                                <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                                    {recent.map((t, i) => {
+                                        const { day, mon } = fmtDayMon(t.date);
+                                        return (
+                                            <div key={t.id || i} className={`flex items-center px-4 py-3 gap-3 ${i < recent.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                                                <div style={{ textAlign: 'center', width: 32, flexShrink: 0 }}>
+                                                    <div style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', lineHeight: 1 }}>{day}</div>
+                                                    <div style={{ fontSize: 10, color: '#aaa' }}>{mon}</div>
+                                                </div>
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', textTransform: 'uppercase' }} className="truncate">{t.to_name}</p>
+                                                    <p style={{ fontSize: 11, color: '#aaa' }}>{t.type}</p>
+                                                </div>
+                                                <span style={{ fontSize: 13, fontWeight: 600, color: t.amount > 0 ? '#2DB34A' : '#1a1a1a' }}>
+                                                    {t.amount > 0 ? '+' : ''}{fmt(t.amount)} EUR
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <BottomNav active="accueil" />
+                </div>
+            );
+        }
+
+        function TransactionsPage({ account, transfers, balances, onBack, onTransfer, onTxClick }) {
+            const [tab, setTab] = useState('executed');
+            const acc = { ...account, balance: balances[account.id] ?? account.balance };
+            const myTransfers = transfers.filter(t => t.from_iban === acc.iban);
+            return (
+                <div className="fixed inset-0 flex flex-col screen-r" style={{ background: '#F2F2F7' }}>
+                    <div style={{ background: 'white', borderBottom: '1px solid #e5e5ea', paddingTop: 'max(44px,env(safe-area-inset-top,44px))' }}>
+                        <div className="flex items-center px-4 pb-3 relative">
+                            <button onClick={onBack} className="press absolute left-4 flex items-center gap-1" style={{ color: '#00965E', fontSize: 15 }}>
+                                <svg width="9" height="15" viewBox="0 0 9 16" fill="none"><path d="M8 1L1 8l7 7" stroke="#00965E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                Retour
+                            </button>
+                            <h1 style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a', flex: 1, textAlign: 'center' }}>Transactions</h1>
+                            <div className="absolute right-4 flex gap-3.5">
+                                <button className="press"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="1.8"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></button>
+                                <button className="press"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex-1 scroll-ios pb-4">
+                        <div className="mx-3 mt-3 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                            <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', textAlign: 'center' }}>{acc.label}</p>
+                            <p style={{ fontSize: 12, color: '#aaa', textAlign: 'center', marginTop: 2 }}>{acc.iban}</p>
+                            <p style={{ fontSize: 28, fontWeight: 700, color: '#1a1a1a', textAlign: 'center', marginTop: 8, lineHeight: 1 }}>
+                                {fmt(acc.balance)} <span style={{ fontSize: 14, fontWeight: 400, color: '#aaa' }}>{acc.currency}</span>
+                            </p>
+                            <div className="flex justify-center mt-3">
+                                <button onClick={onTransfer} className="press rounded-full px-5 py-2.5 flex items-center gap-2" style={{ background: '#f2f2f7' }}>
+                                    <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#2DB34A' }}>
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+                                    </div>
+                                    <span style={{ fontSize: 13, fontWeight: 500, color: '#1a1a1a' }}>Faire un virement</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div className="mx-3 mt-3 flex rounded-xl p-1" style={{ background: '#e5e5ea' }}>
+                            {['executed', 'planned'].map(t => (
+                                <button key={t} onClick={() => setTab(t)} className={`press flex-1 py-2 rounded-lg text-[13px] font-medium transition-all ${tab === t ? 'bg-white text-[#1a1a1a] shadow-sm' : 'text-gray-500'}`}>
+                                    {t === 'executed' ? 'Exécuté' : 'Planifié'}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="mx-3 mt-3 bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                            {tab === 'executed' && myTransfers.length > 0 ? myTransfers.map((t, i) => {
+                                const { day, mon } = fmtDayMon(t.date);
+                                return (
+                                    <button key={t.id || i} onClick={() => onTxClick(t)} className="press w-full flex items-center px-4 py-3.5 gap-3 border-b border-gray-100 last:border-0">
+                                        <div style={{ textAlign: 'center', width: 36, flexShrink: 0 }}>
+                                            <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', lineHeight: 1 }}>{day}</div>
+                                            <div style={{ fontSize: 10, color: '#aaa' }}>{mon}</div>
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                                            <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', textTransform: 'uppercase' }} className="truncate">{t.to_name}</p>
+                                            <p style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{t.type}</p>
+                                        </div>
+                                        <span style={{ fontSize: 13, fontWeight: 600, color: t.amount > 0 ? '#2DB34A' : '#1a1a1a', flexShrink: 0 }}>
+                                            {t.amount > 0 ? '+' : ''}{fmt(t.amount)} EUR
+                                        </span>
+                                        <svg width="8" height="13" viewBox="0 0 9 16" fill="none" style={{ opacity: .3, flexShrink: 0 }}><path d="M1 1l7 7-7 7" stroke="#1a1a1a" strokeWidth="2.2" strokeLinecap="round" /></svg>
+                                    </button>
+                                );
+                            }) : (
+                                <div style={{ padding: '48px 0', textAlign: 'center' }}>
+                                    <p style={{ fontSize: 14, color: '#aaa' }}>{tab === 'executed' ? 'Aucune transaction' : 'Aucun virement planifié'}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <BottomNav active="accueil" />
+                </div>
+            );
+        }
+
+
+        function fmtDateDoc(dateStr) {
+            if (!dateStr) return '';
+            const [y, m, d] = dateStr.split('-');
+            return d + '/' + m + '/' + y;
+        }
+        function fmtDateHeader(dateStr) {
+            if (!dateStr) return '';
+            const [y, m, d] = dateStr.split('-');
+            return d + '.' + m + '.' + y;
+        }
+        function fmtAmountDoc(amount) {
+            if (amount === undefined || amount === null) return '';
+            const n = Math.abs(parseFloat(amount)).toFixed(2).replace('.', ',');
+            return (parseFloat(amount) < 0 ? '-' : '+') + n + ' EUR';
+        }
+        function genRef(id) {
+            const h = Math.abs(id).toString(16).toUpperCase().padStart(8, '0');
+            const r = (id * 2654435761 >>> 0).toString(16).toUpperCase().padStart(8, '0');
+            return (h + r + h.split('').reverse().join('') + r.split('').reverse().join('')).substring(0, 32);
+        }
+        function genBankRef(id) {
+            return Math.abs(id).toString().padStart(16, '0');
+        }
+
+        function downloadTxPdf(tx) {
+            if (!window.jspdf) return;
+            const { jsPDF } = window.jspdf;
+
+            // ── Format A4 portrait, marges calées sur l'image Hello bank! ──
+            const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+            const PW = 210, PH = 297;
+            const ML = 14, MR = 14;           // marges gauche/droite page
+            const CML = 18, CMR = 18;          // marges intérieures carte
+            const CW = PW - ML - MR;            // largeur carte
+
+            // Fond page gris très clair (comme l'app)
+            doc.setFillColor(242,242,247);
+            doc.rect(0,0,PW,PH,'F');
+
+            // ── Helpers ──
+            const fmtDot  = s => { if(!s) return ''; const [y,m,d]=s.split('-'); return d+'.'+m+'.'+y; };
+            const fmtSlash= s => { if(!s) return ''; const [y,m,d]=s.split('-'); return d+'/'+m+'/'+y; };
+            const fmtAmt  = n => {
+                if(n===undefined||n===null) return '';
+                const abs = Math.abs(parseFloat(n)).toFixed(2).replace('.',',');
+                return (parseFloat(n)<0?'-':'+')+abs+' EUR';
+            };
+            const genRef     = id => { const h=Math.abs(id).toString(16).toUpperCase().padStart(8,'0'); const r=(id*2654435761>>>0).toString(16).toUpperCase().padStart(8,'0'); return (h+r+h.split('').reverse().join('')+r.split('').reverse().join('')).substring(0,32); };
+            const genBankRef = id => Math.abs(id).toString().padStart(16,'0');
+
+            const txId       = tx.id || Date.now();
+            const docDate    = tx.created_at ? fmtDot(tx.created_at.substring(0,10)) : fmtDot(tx.date);
+            const execSlash  = fmtSlash(tx.date);
+            const ref        = genRef(txId);
+            const bankRef    = genBankRef(txId);
+            const toNameUp   = (tx.to_name||'').toUpperCase();
+            const toIban     = (tx.to_iban||'').toUpperCase().replace('—','').trim();
+            const bicRaw     = (tx.bic||'').trim().toUpperCase().replace(/\s+/g,'');
+            const bicFmt     = bicRaw.length===11 ? bicRaw.slice(0,8)+' '+bicRaw.slice(8) : bicRaw;
+            const bicLine    = bicFmt ? 'BIC '+bicFmt+' VIA MOBILE BANKING' : 'VIA MOBILE BANKING';
+            const typeUp     = (tx.type||'VIREMENT INSTANTANE EN EUROS').toUpperCase()
+                                 .replace(/É/g,'E').replace(/À/g,'A').replace(/Â/g,'A').replace(/Ê/g,'E').replace(/È/g,'E').replace(/Î/g,'I');
+            const seqStr     = tx.seq ? String(tx.seq) : (new Date().getFullYear()+'-'+String(txId).slice(-2));
+            const commUp     = tx.comm ? tx.comm.toUpperCase() : 'PAS DE COMMUNICATION';
+
+            let y = 12;
+
+            // ════════════════════════════════════════════
+            // ZONE HEADER  (fond gris, hors carte)
+            // "Terminé"  à gauche  +  icône partage à droite
+            // ════════════════════════════════════════════
+            doc.setFont('helvetica','normal');
+            doc.setFontSize(20);
+            doc.setTextColor(32,160,96);
+            doc.text('Terminé', ML+2, y+6);
+
+            // Icône ↑ dans carré arrondi (coin haut droit)
+            const bx = PW-MR-10, by = y;
+            doc.setDrawColor(60,60,60); doc.setLineWidth(0.55);
+            doc.roundedRect(bx, by, 10, 10, 1.8, 1.8);
+            // trait vertical
+            doc.line(bx+5, by+6.8, bx+5, by+3.5);
+            // flèche
+            doc.line(bx+3.2, by+5.2, bx+5, by+3.2);
+            doc.line(bx+6.8, by+5.2, bx+5, by+3.2);
+
+            y += 15;
+
+            // ════════════════════════════════════════════
+            // CARTE BLANCHE  (fond blanc, bordure légère)
+            // ════════════════════════════════════════════
+            const cardX  = ML;
+            const cardY  = y;
+            // on peint d'abord le fond blanc
+            doc.setFillColor(255,255,255);
+            // la hauteur sera calculée après — on dessine le rect à la fin
+
+            y += 8;   // padding top intérieur carte
+
+            // ── Logo Hello bank!  (côté gauche) + Date (côté droit) ──
+            const logoX = cardX + CML - 14;
+            const logoH = 14, logoW = 14;
+            doc.addImage(HELLO_BANK_LOGO, 'WEBP', logoX, y, logoW, logoH);
+
+            doc.setFont('helvetica','normal');
+            doc.setFontSize(10);
+            doc.setTextColor(30,30,30);
+            doc.text(docDate, PW-MR-CML+14-2, y+8, { align:'right' });
+
+            y += logoH + 8;
+
+            // ── Titre "Détails de la transaction" + ligne séparatrice ──
+            doc.setFont('helvetica','bold');
+            doc.setFontSize(10.5);
+            doc.setTextColor(20,20,20);
+            doc.text('Détails de la transaction', cardX+CML-14+2, y);
+            y += 3;
+            doc.setDrawColor(30,30,30); doc.setLineWidth(0.55);
+            doc.line(cardX+CML-14+2, y, PW-MR-CMR+14-2, y);
+            y += 5;
+
+            // ── Lignes du tableau ──
+            doc.setFont('helvetica','normal');
+            const col1 = cardX + CML - 14 + 2;   // col label
+            const col2 = col1 + 44;               // col valeur (calé sur l'image)
+            const rowH = 7;
+            const FS   = 9.2;
+
+            const drawRow = (label, value) => {
+                doc.setFontSize(FS);
+                doc.setTextColor(30,30,30);
+                doc.text(label, col1, y);
+                doc.text(String(value), col2, y);
+                y += rowH;
+            };
+
+            drawRow('Type de transaction', tx.type||'Virement instantané en euros');
+            drawRow('De', tx.from_iban||'—');
+            drawRow('Montant', fmtAmt(tx.amount));
+            drawRow("Date d'exécution", execSlash);
+            drawRow('Date de comptabilisation', execSlash);
+
+            // ── Détails (multiligne) ──
+            const detailLines = [
+                typeUp,
+                toNameUp,
+                ...(toIban && toIban!=='—' ? [toIban] : []),
+                bicLine,
+                'VOTRE REFERENCE :',
+                ref,
+                commUp,
+                'REFERENCE BANQUE : '+bankRef,
+                'DATE VALEUR : '+execSlash,
+            ];
+            const lineH = 5.1;
+            doc.setFontSize(FS);
+            doc.setTextColor(30,30,30);
+            doc.text('Détails', col1, y);
+            detailLines.forEach((line, i) => {
+                doc.text(line, col2, y + i*lineH);
+            });
+            y += detailLines.length * lineH + 4;
+
+            // ── Nº de séquence ──
+            drawRow('N\u00ba de s\u00e9quence', seqStr);
+
+            y += 6; // padding bas intérieur carte
+
+            // ── Dessiner la carte (fond + contour) ──
+            const cardH = y - cardY;
+            doc.setFillColor(255,255,255);
+            doc.roundedRect(cardX, cardY, CW, cardH, 2.5, 2.5, 'F');
+            doc.setDrawColor(210,210,215); doc.setLineWidth(0.35);
+            doc.roundedRect(cardX, cardY, CW, cardH, 2.5, 2.5, 'S');
+
+            // Repasser tous les textes intérieurs PAR-DESSUS la carte blanche
+            // (jsPDF peint dans l'ordre — on re-dessine logo + textes)
+            doc.addImage(HELLO_BANK_LOGO, 'WEBP', logoX, cardY+8, logoW, logoH);
+            doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(30,30,30);
+            doc.text(docDate, PW-MR-CMR+14-2, cardY+8+8, { align:'right' });
+
+            let ry = cardY + 8 + logoH + 8;
+            doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(20,20,20);
+            doc.text('Détails de la transaction', col1, ry);
+            ry += 3;
+            doc.setDrawColor(30,30,30); doc.setLineWidth(0.55);
+            doc.line(col1, ry, PW-MR-CMR+14-2, ry);
+            ry += 5;
+
+            doc.setFont('helvetica','normal');
+            const rDrawRow = (label, value) => {
+                doc.setFontSize(FS); doc.setTextColor(30,30,30);
+                doc.text(label, col1, ry);
+                doc.text(String(value), col2, ry);
+                ry += rowH;
+            };
+            rDrawRow('Type de transaction', tx.type||'Virement instantané en euros');
+            rDrawRow('De', tx.from_iban||'—');
+            rDrawRow('Montant', fmtAmt(tx.amount));
+            rDrawRow("Date d'ex\u00e9cution", execSlash);
+            rDrawRow('Date de comptabilisation', execSlash);
+
+            doc.setFontSize(FS); doc.setTextColor(30,30,30);
+            doc.text('D\u00e9tails', col1, ry);
+            detailLines.forEach((line, i) => { doc.text(line, col2, ry + i*lineH); });
+            ry += detailLines.length * lineH + 4;
+            rDrawRow('N\u00ba de s\u00e9quence', seqStr);
+
+            // ── Disclaimer (sous la carte, fond gris) ──
+            const dy = cardY + cardH + 6;
+            doc.setFontSize(7.2);
+            doc.setFont('helvetica','italic');
+            doc.setTextColor(130,130,130);
+            doc.text('Disclaimer: Ceci ne constitue ni un extrait de compte ni une preuve de paiement.', cardX+2, dy);
+            doc.setFont('helvetica','normal');
+            doc.text('1', PW-MR-2, dy, { align:'right' });
+
+            // ── Téléchargement ──
+            doc.save('transaction_'+String(txId)+'.pdf');
+        }
+
+        function PdfDetailOverlay({ tx, onClose }) {
+            const docDate = tx.created_at ? fmtDateHeader(tx.created_at.substring(0, 10)) : fmtDateHeader(tx.date);
+            const execDate = fmtDateDoc(tx.date);
+            const ref = genRef(tx.id || Date.now());
+            const bankRef = genBankRef(tx.id || Date.now());
+            const toNameUpper = (tx.to_name || '').toUpperCase();
+            const toIban = (tx.to_iban || '').toUpperCase().replace('—','').trim();
+            const bicRaw = (tx.bic || '').trim().toUpperCase().replace(/\s+/g, '');
+            const bicFmt = bicRaw.length === 11 ? bicRaw.slice(0, 8) + ' ' + bicRaw.slice(8) : bicRaw;
+            const bicLine = bicFmt ? 'BIC ' + bicFmt + ' VIA MOBILE BANKING' : 'VIA MOBILE BANKING';
+            const typeUp = (tx.type || 'VIREMENT INSTANTANE EN EUROS').toUpperCase()
+                .replace(/É/g,'E').replace(/À/g,'A').replace(/Â/g,'A').replace(/Ê/g,'E').replace(/È/g,'E');
+            const seqStr = tx.seq ? String(tx.seq) : (new Date().getFullYear()+'-'+String(tx.id||'00').toString().slice(-2));
+            const commUp = tx.comm ? tx.comm.toUpperCase() : 'PAS DE COMMUNICATION';
+
+            const detailLines = [
+                typeUp,
+                toNameUpper,
+                ...(toIban && toIban !== '—' && toIban !== '' ? [toIban] : []),
+                bicLine,
+                'VOTRE REFERENCE :',
+                ref,
+                commUp,
+                'REFERENCE BANQUE : ' + bankRef,
+                'DATE VALEUR : ' + execDate,
+            ];
+
+            return (
+                <div className="fixed inset-0 z-[200] flex flex-col" style={{ background: '#f2f2f7' }}>
+                    {/* ── Header : Terminé + icône partage ── */}
+                    <div style={{ background: '#f2f2f7', padding: 'max(env(safe-area-inset-top,16px),16px) 16px 0', flexShrink: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 44 }}>
+                            <button onClick={onClose} className="press" style={{ color: '#00965E', fontSize: 17, fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>
+                                Terminé
+                            </button>
+                            <button className="press" onClick={() => downloadTxPdf(tx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a1a1a' }}>
+                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+                                    <polyline points="16 6 12 2 8 6"/>
+                                    <line x1="12" y1="2" x2="12" y2="15"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ── Contenu scrollable ── */}
+                    <div className="flex-1 scroll-ios" style={{ padding: '14px 12px max(env(safe-area-inset-bottom,20px),20px)' }}>
+
+                        {/* ── CARTE BLANCHE style Hello bank! ── */}
+                        <div style={{ background: 'white', borderRadius: 8, maxWidth: 560, margin: '0 auto', overflow: 'hidden', boxShadow: '0 2px 16px rgba(0,0,0,.10)', border: '1px solid #e0e0e5' }}>
+
+                            {/* Logo Hello bank! + date */}
+                            <div style={{ padding: '20px 20px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <img src={HELLO_BANK_LOGO} alt="Hello bank!" style={{ height: 44, width: 44, objectFit: 'contain', borderRadius: 6 }} />
+                                <div style={{ fontSize: 12.5, color: '#1a1a1a', fontWeight: 400, paddingTop: 6 }}>{docDate}</div>
+                            </div>
+
+                            {/* Titre + ligne */}
+                            <div style={{ padding: '0 20px 10px' }}>
+                                <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1a1a1a', marginBottom: 7 }}>Détails de la transaction</div>
+                                <div style={{ height: 1, background: '#1a1a1a' }} />
+                            </div>
+
+                            {/* Tableau lignes */}
+                            <div style={{ padding: '2px 20px 0' }}>
+                                {[
+                                    ["Type de transaction", tx.type || "Virement instantané en euros"],
+                                    ["De", tx.from_iban || "—"],
+                                    ["Montant", fmtAmountDoc(tx.amount)],
+                                    ["Date d'exécution", execDate],
+                                    ["Date de comptabilisation", execDate],
+                                ].map(([k, v]) => (
+                                    <div key={k} style={{ display: 'flex', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                                        <div style={{ width: '42%', fontSize: 11.5, color: '#1a1a1a', flexShrink: 0 }}>{k}</div>
+                                        <div style={{ fontSize: 11.5, color: '#1a1a1a' }}>{v}</div>
+                                    </div>
+                                ))}
+
+                                {/* Détails multiligne */}
+                                <div style={{ display: 'flex', padding: '8px 0 6px' }}>
+                                    <div style={{ width: '42%', fontSize: 11.5, color: '#1a1a1a', flexShrink: 0 }}>Détails</div>
+                                    <div style={{ fontSize: 11.5, color: '#1a1a1a', lineHeight: 1.7 }}>
+                                        {detailLines.map((line, i) => (
+                                            <div key={i} style={{ wordBreak: 'break-all' }}>{line}</div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Nº de séquence */}
+                                <div style={{ display: 'flex', padding: '8px 0 18px', borderTop: '1px solid #f0f0f0' }}>
+                                    <div style={{ width: '42%', fontSize: 11.5, color: '#1a1a1a', flexShrink: 0 }}>Nº de séquence</div>
+                                    <div style={{ fontSize: 11.5, color: '#1a1a1a' }}>{seqStr}</div>
+                                </div>
+                            </div>
+
+                            {/* Disclaimer */}
+                            <div style={{ borderTop: '1px solid #e0e0e5', padding: '8px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ fontSize: 9.5, color: '#888', fontStyle: 'italic', flex: 1, paddingRight: 8 }}>
+                                    Disclaimer: Ceci ne constitue ni un extrait de compte ni une preuve de paiement.
+                                </div>
+                                <div style={{ fontSize: 9.5, color: '#888', flexShrink: 0 }}>1</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function TransactionDetail({ tx, onBack }) {
+            const [showPdf, setShowPdf] = useState(false);
+            const dateStr = fmtLong(tx.date);
+            const rows = [
+                ['Type', tx.type],
+                ...(tx.card ? [['Carte', tx.card]] : []),
+                ...(tx.bic ? [['BIC bénéficiaire', tx.bic]] : []),
+                ['Date valeur', dateStr],
+                ['N° de séquence', String(tx.seq ?? '—')],
+            ];
+            return (
+                <div className="fixed inset-0 flex flex-col screen-r" style={{ background: '#F2F2F7' }}>
+                    <div style={{ background: 'white', borderBottom: '1px solid #e5e5ea', paddingTop: 'max(44px,env(safe-area-inset-top,44px))' }}>
+                        <div className="flex items-center px-4 pb-3 relative">
+                            <button onClick={onBack} className="press absolute left-4 flex items-center gap-1" style={{ color: '#00965E', fontSize: 15 }}>
+                                <svg width="9" height="15" viewBox="0 0 9 16" fill="none"><path d="M8 1L1 8l7 7" stroke="#00965E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                Retour
+                            </button>
+                            <h1 style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a', flex: 1, textAlign: 'center' }}>Détails de la transaction</h1>
+                            <button className="press absolute right-4" onClick={() => setShowPdf(true)}>
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00965E" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="8" y1="13" x2="16" y2="13" />
+                                    <line x1="8" y1="17" x2="12" y2="17" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex-1 scroll-ios pb-4">
+                        <div className="mx-3 mt-3 bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
+                            <p style={{ fontSize: 34, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.1 }}>
+                                {fmtSigned(tx.amount)} <span style={{ fontSize: 18, fontWeight: 600 }}>EUR</span>
+                            </p>
+                            <p style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a', marginTop: 6, textTransform: 'uppercase' }}>{tx.to_name}</p>
+                            <p style={{ fontSize: 13, color: '#aaa', marginTop: 4 }}>{dateStr}</p>
+                        </div>
+                        <div className="mx-3 mt-3 bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                            {rows.map(([k, v], i) => (
+                                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderBottom: i < rows.length - 1 ? '1px solid #f0f0f5' : 'none' }}>
+                                    <span style={{ fontSize: 14, color: '#1a1a1a' }}>{k}</span>
+                                    <span style={{ fontSize: 14, color: '#666', textAlign: 'right', maxWidth: '58%' }}>{v}</span>
+                                </div>
+                            ))}
+                            <button className="press w-full flex justify-between items-center px-4 py-4" style={{ borderTop: '1px solid #f0f0f5' }} onClick={() => setShowPdf(true)}>
+                                <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>Plus d'informations</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <BottomNav active="accueil" />
+                    {showPdf && <PdfDetailOverlay tx={tx} onClose={() => setShowPdf(false)} />}
+                </div>
+            );
+        }
+
+        function SuccessOverlay({ amount, toName, onClose }) {
+            useEffect(() => { const t = setTimeout(onClose, 3200); return () => clearTimeout(t); }, []);
+            return (
+                <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center modal-up">
+                    <div style={{ animation: 'ringIn .5s ease' }}>
+                        <div style={{ width: 100, height: 100, borderRadius: '50%', background: '#E8F5E9', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'popIn .5s .15s ease both', opacity: 0 }}>
+                            <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+                                <circle cx="26" cy="26" r="25" stroke="#2DB34A" strokeWidth="2.5" />
+                                <path d="M14 26l9 9 16-18" stroke="#2DB34A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="40" strokeDashoffset="40" style={{ animation: 'checkDraw .4s .5s ease forwards' }} />
+                            </svg>
+                        </div>
+                    </div>
+                    <p style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', marginTop: 24 }}>Virement envoyé !</p>
+                    <p style={{ fontSize: 32, fontWeight: 900, color: '#2DB34A', marginTop: 4 }}>{fmt(Math.abs(amount))} EUR</p>
+                    <p style={{ fontSize: 15, color: '#888', marginTop: 8 }}>vers <span style={{ fontWeight: 600, color: '#1a1a1a', textTransform: 'uppercase' }}>{toName}</span></p>
+                    <div style={{ marginTop: 40, width: 128, height: 4, background: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', background: '#2DB34A', borderRadius: 2, animation: 'loadBar 3s linear forwards' }} />
+                    </div>
+                    <p style={{ fontSize: 12, color: '#bbb', marginTop: 12 }}>Fermeture automatique...</p>
+                </div>
+            );
+        }
+
+        function TransferField({ lbl, val, onChange, type = 'text' }) {
+            return (
+                <div style={{ background: 'white', borderRadius: 16, padding: '14px 16px', boxShadow: '0 1px 3px rgba(0,0,0,.06)', border: '1px solid #f0f0f5' }}>
+                    {val ? <label style={{ display: 'block', fontSize: 11, color: '#8e8e93', fontWeight: 500, marginBottom: 3 }}>{lbl}</label> : null}
+                    <input type={type} value={val} onChange={e => onChange(e.target.value)} placeholder={lbl}
+                        style={{ fontSize: 16, color: '#1a1a1a', caretColor: '#00965E', width: '100%', background: 'transparent', border: 'none', outline: 'none', padding: 0 }} />
+                </div>
+            );
+        }
+
+        const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
+        function DatePickerModal({ value, onChange, onClose }) {
+            const initial = value ? new Date(value + 'T12:00:00') : new Date();
+            const [year, setYear] = useState(initial.getFullYear());
+            const [month, setMonth] = useState(initial.getMonth());
+            const [day, setDay] = useState(initial.getDate());
+
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDay = new Date(year, month, 1).getDay();
+            const adjustedFirst = firstDay === 0 ? 6 : firstDay - 1; // lundi=0
+            const today = new Date();
+
+            const confirm = () => {
+                const d = Math.min(day, daysInMonth);
+                const pad = n => String(n).padStart(2, '0');
+                onChange(`${year}-${pad(month + 1)}-${pad(d)}`);
+                onClose();
+            };
+
+            const cells = [];
+            for (let i = 0; i < adjustedFirst; i++) cells.push(null);
+            for (let i = 1; i <= daysInMonth; i++) cells.push(i);
+
+            return (
+                <div className="fixed inset-0 z-[60] flex flex-col">
+                    <div style={{ flex: 1, background: 'rgba(0,0,0,.4)' }} onClick={onClose} />
+                    <div style={{ background: 'white', borderRadius: '20px 20px 0 0', paddingBottom: 'max(24px,env(safe-area-inset-bottom,24px))' }} className="modal-up">
+                        <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 0' }}>
+                            <div style={{ width: 38, height: 4, borderRadius: 2, background: '#d0d0d5' }} />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 8px' }}>
+                            <button onClick={onClose} style={{ color: '#00965E', fontSize: 15 }} className="press">Annuler</button>
+                            <span style={{ fontSize: 16, fontWeight: 600, color: '#1a1a1a' }}>Date d'exécution</span>
+                            <button onClick={confirm} style={{ color: '#00965E', fontSize: 15, fontWeight: 600 }} className="press">OK</button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 12px' }}>
+                            <button onClick={() => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); }} className="press" style={{ color: '#00965E', padding: '6px 12px', fontSize: 20 }}>‹</button>
+                            <span style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a' }}>{MONTHS_FR[month]} {year}</span>
+                            <button onClick={() => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); }} className="press" style={{ color: '#00965E', padding: '6px 12px', fontSize: 20 }}>›</button>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', textAlign: 'center', padding: '0 8px' }}>
+                            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => (
+                                <div key={i} style={{ fontSize: 11, color: '#8e8e93', fontWeight: 600, paddingBottom: 6 }}>{d}</div>
+                            ))}
+                            {cells.map((d, i) => (
+                                <button key={i} onClick={() => d && setDay(d)} className="press" style={{
+                                    height: 38, borderRadius: 999, fontSize: 15,
+                                    background: d === day && d ? '#00965E' : 'transparent',
+                                    color: d === day && d ? 'white' : d ? '#1a1a1a' : 'transparent',
+                                    fontWeight: d === day ? 700 : 400,
+                                    border: d && d === today.getDate() && month === today.getMonth() && year === today.getFullYear() && d !== day ? '1px solid #00965E' : 'none',
+                                }}>{d}</button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function DateField({ lbl, val, onChange }) {
+            const [open, setOpen] = useState(false);
+            const display = val ? new Date(val + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+            return (
+                <>
+                    <button onClick={() => setOpen(true)} className="press w-full text-left" style={{ background: 'white', borderRadius: 16, padding: '14px 16px', boxShadow: '0 1px 3px rgba(0,0,0,.06)', border: '1px solid #f0f0f5' }}>
+                        {val ? <div style={{ fontSize: 11, color: '#8e8e93', fontWeight: 500, marginBottom: 3 }}>{lbl}</div> : null}
+                        <div style={{ fontSize: 16, color: val ? '#1a1a1a' : '#8e8e93' }}>{display || lbl}</div>
+                    </button>
+                    {open && <DatePickerModal value={val} onChange={onChange} onClose={() => setOpen(false)} />}
+                </>
+            );
+        }
+
+        function BeneficiaryField({ toName, toIban, onChangeName, onChangeIban, favorites }) {
+            const [open, setOpen] = React.useState(false);
+            const filtered = favorites.filter(f => !toName || f.name.toUpperCase().includes(toName.toUpperCase()));
+            return (
+                <div>
+                    <div style={{ background: 'white', borderRadius: 16, padding: '14px 16px', boxShadow: '0 1px 3px rgba(0,0,0,.06)', border: '1px solid #f0f0f5' }}>
+                        {toName ? <label style={{ display: 'block', fontSize: 11, color: '#8e8e93', fontWeight: 500, marginBottom: 3 }}>Vers (nom du bénéficiaire)</label> : null}
+                        <input
+                            value={toName}
+                            onChange={e => { onChangeName(e.target.value); setOpen(true); }}
+                            onFocus={() => setOpen(true)}
+                            placeholder="Vers (nom du bénéficiaire)"
+                            style={{ fontSize: 16, color: '#1a1a1a', caretColor: '#00965E', width: '100%', background: 'transparent', border: 'none', outline: 'none', padding: 0 }}
+                        />
+                    </div>
+                    {open && filtered.length > 0 && (
+                        <div style={{ background: 'white', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,.1)', border: '1px solid #f0f0f5', marginTop: 4 }}>
+                            {filtered.slice(0, 6).map((f, i) => (
+                                <button key={i} onMouseDown={() => { onChangeName(f.name); onChangeIban(f.iban || ''); setOpen(false); }} className="press w-full text-left" style={{ padding: '12px 16px', borderBottom: i < Math.min(filtered.length, 6) - 1 ? '1px solid #f0f0f5' : 'none', background: 'white' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: f.own ? '#E8F5E9' : '#f0f0f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                            <span style={{ fontSize: 13, fontWeight: 700, color: f.own ? '#00965E' : '#666' }}>{f.name.charAt(0)}</span>
+                                        </div>
+                                        <div>
+                                            <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}>{f.name.toUpperCase()}</p>
+                                            {f.iban && <p style={{ fontSize: 11, color: '#aaa', marginTop: 1 }}>{f.iban}</p>}
+                                            {f.own && <span style={{ fontSize: 9, color: 'white', background: '#00965E', padding: '1px 5px', borderRadius: 3, fontWeight: 700 }}>MON COMPTE</span>}
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function IOSToggle({ checked, onChange }) {
+            return (
+                <div onClick={() => onChange(!checked)} style={{ width: 51, height: 31, borderRadius: 999, cursor: 'pointer', background: checked ? '#00965E' : '#d1d1d6', transition: 'background .22s', position: 'relative', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}>
+                    <div style={{ position: 'absolute', top: 2, left: checked ? 22 : 2, width: 27, height: 27, borderRadius: '50%', background: 'white', boxShadow: '0 2px 6px rgba(0,0,0,.28)', transition: 'left .22s' }} />
+                </div>
+            );
+        }
+
+        function ExecDateModal({ date, setDate, isInstant, setIsInstant, onClose }) {
+            const [localDate, setLocalDate] = useState(date);
+            const [localInstant, setLocalInstant] = useState(isInstant);
+            const [showCal, setShowCal] = useState(false);
+            const confirm = () => { setDate(localDate); setIsInstant(localInstant); onClose(); };
+            return (
+                <div className="fixed inset-0 z-[60] flex flex-col" style={{ zIndex: 60 }}>
+                    <div style={{ flex: 1, background: 'rgba(0,0,0,.4)' }} onClick={onClose} />
+                    <div style={{ background: '#f2f2f7', borderRadius: '22px 22px 0 0', paddingBottom: 'max(28px, env(safe-area-inset-bottom, 28px))' }} className="modal-up">
+                        <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 0' }}>
+                            <div style={{ width: 38, height: 4, borderRadius: 2, background: '#d0d0d5' }} />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px 16px' }}>
+                            <span style={{ fontSize: 18, fontWeight: 700, color: '#1a1a1a' }}>Quand</span>
+                            <button onClick={onClose} style={{ color: '#00965E', fontSize: 16, fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }} className="press">Annuler</button>
+                        </div>
+                        <div style={{ margin: '0 16px 10px', background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
+                            <button onClick={() => setShowCal(true)} className="press w-full text-left" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%' }}>
+                                <div>
+                                    <div style={{ fontSize: 11, color: '#8e8e93', fontWeight: 500, marginBottom: 3 }}>Date d'exécution</div>
+                                    <div style={{ fontSize: 16, color: '#1a1a1a' }}>
+                                        {new Date(localDate + 'T12:00:00').toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                                    </div>
+                                </div>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c0c0c5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                            </button>
+                        </div>
+                        <div style={{ margin: '0 16px 8px', background: 'white', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
+                            <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div>
+                                    <div style={{ fontSize: 16, fontWeight: 600, color: '#1a1a1a', marginBottom: 2 }}>Virement instantané</div>
+                                    <div style={{ fontSize: 13, color: '#8e8e93' }}>Gratuit</div>
+                                </div>
+                                <IOSToggle checked={localInstant} onChange={setLocalInstant} />
+                            </div>
+                        </div>
+                        <p style={{ margin: '6px 20px 18px', fontSize: 13, color: '#6b6b6b', lineHeight: 1.5 }}>
+                            Le montant sera instantanément disponible sur le compte du bénéficiaire.
+                        </p>
+                        <div style={{ padding: '0 16px' }}>
+                            <button onClick={confirm} className="press w-full" style={{ background: '#00965E', border: 'none', borderRadius: 14, padding: '16px', color: 'white', fontSize: 16, fontWeight: 700, cursor: 'pointer', width: '100%', letterSpacing: '.01em' }}>
+                                Continuer
+                            </button>
+                        </div>
+                        {showCal && <DatePickerModal value={localDate} onChange={(d) => { setLocalDate(d); setShowCal(false); }} onClose={() => setShowCal(false)} />}
+                    </div>
+                </div>
+            );
+        }
+
+        // ── Lookup IBAN → BIC / Banque via OpenIBAN ──────────────────────
+        async function lookupIban(rawIban) {
+            const iban = rawIban.replace(/\s+/g, '').toUpperCase();
+            // Validation basique avant appel API
+            if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(iban)) {
+                return { valid: false, error: 'Format IBAN invalide' };
+            }
+            try {
+                const url = `https://openiban.com/validate/${encodeURIComponent(iban)}?getBIC=true&validateBankCode=true`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('API indisponible');
+                const data = await res.json();
+                if (!data.valid) {
+                    return { valid: false, error: 'IBAN invalide ou introuvable' };
+                }
+                return {
+                    valid: true,
+                    country: data.bankData?.name ? '' : '',
+                    bank_name: data.bankData?.name || '',
+                    bic: data.bankData?.bic || '',
+                };
+            } catch (e) {
+                return { valid: false, error: 'Service IBAN momentanément indisponible' };
+            }
+        }
+
+        function TransferModal({ balances, onSubmit, onCancel, defaultFromId, transfers }) {
+            const [fromId, setFromId] = useState(defaultFromId || CFG.accounts[0]?.id);
+            const [toName, setToName] = useState('');
+            const [toIban, setToIban] = useState('');
+            const [amount, setAmount] = useState('');
+            const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+            const [comm, setComm] = useState('');
+            const [step, setStep] = useState(1);
+            const [pick, setPick] = useState(false);
+            const [showFav, setShowFav] = useState(false);
+            const [loading, setLoading] = useState(false);
+            const [isInstant, setIsInstant] = useState(false);
+            const [showExecModal, setShowExecModal] = useState(false);
+            // Vérification BIC obligatoire pour virements ≥ 1000 EUR (réglementation EU)
+            const [bic, setBic] = useState('');
+            // ── IBAN lookup state ──
+            const [ibanInfo, setIbanInfo]       = useState(null);
+            const [ibanLoading, setIbanLoading] = useState(false);
+            const [ibanError, setIbanError]     = useState('');
+            const accounts = CFG.accounts.map(a => ({ ...a, balance: balances[a.id] ?? a.balance }));
+            const fromAcc = accounts.find(a => a.id === fromId);
+            const canNext = fromId && toName.trim() && amount && parseFloat(amount) > 0;
+
+            // ── Debounce IBAN lookup (600ms) ──────────────────────────────
+            useEffect(() => {
+                const cleaned = toIban.replace(/\s+/g, '').toUpperCase();
+                if (cleaned.length < 14) {
+                    setIbanInfo(null);
+                    setIbanError('');
+                    setIbanLoading(false);
+                    return;
+                }
+                setIbanLoading(true);
+                setIbanInfo(null);
+                setIbanError('');
+                const timer = setTimeout(async () => {
+                    const result = await lookupIban(cleaned);
+                    setIbanLoading(false);
+                    if (result.valid) {
+                        setIbanInfo(result);
+                        setIbanError('');
+                        if (result.bic) setBic(result.bic);
+                    } else {
+                        setIbanInfo(null);
+                        setIbanError(result.error || 'IBAN invalide');
+                    }
+                }, 600);
+                return () => clearTimeout(timer);
+            }, [toIban]);
+
+            const beneficiaries = useMemo(() => {
+                const seen = new Set();
+                const list = [];
+                CFG.accounts.forEach(a => {
+                    if (a.id !== fromId) { seen.add(a.label); list.push({ name: a.label, iban: a.iban, own: true }); }
+                });
+                (transfers || []).forEach(t => {
+                    if (t.to_name && !seen.has(t.to_name)) { seen.add(t.to_name); list.push({ name: t.to_name, iban: t.to_iban || '' }); }
+                });
+                return list;
+            }, [transfers, fromId]);
+
+            const filtered = beneficiaries.filter(f => !toName || f.name.toUpperCase().includes(toName.toUpperCase()));
+
+            const selectFav = (f) => {
+                setToName(f.name);
+                setToIban(f.iban || '');
+                setShowFav(false);
+            };
+
+            // Submit final commun aux deux flows (avec ou sans BIC).
+            // Le BIC est passé seulement s'il est renseigné (cas ≥ 1000 EUR).
+            const doSubmit = (bicValue) => {
+                setLoading(true);
+                setTimeout(() => {
+                    onSubmit({
+                        from_iban: fromAcc?.iban, from_id: fromId,
+                        to_name: toName.trim(), to_iban: toIban.trim() || '—',
+                        amount: -Math.abs(parseFloat(amount)),
+                        type: isInstant ? 'Virement instantané en euros' : 'Virement 2 à 3 jours ouvrables',
+                        date, comm: comm.trim(),
+                        ...(bicValue ? { bic: bicValue } : {}),
+                    });
+                }, 600);
+            };
+
+            const confirm = () => {
+                // BIC auto-rempli via lookup IBAN (transmis au PDF si disponible)
+                doSubmit(ibanInfo?.bic || bic || null);
+            };
+
+            // Confirm BIC : valide le format (8 ou 11 chars alphanumériques) puis submit.
+            const confirmBic = () => {
+                const v = bic.trim().toUpperCase().replace(/\s+/g, '');
+                if (!/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(v)) {
+                    setBicError('Format BIC invalide (8 ou 11 caractères, ex: GEBABEBB)');
+                    return;
+                }
+                setShowBicVerify(false);
+                doSubmit(v);
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex flex-col">
+                    <div style={{ flex: '0 0 64px', background: 'rgba(0,0,0,.35)' }} onClick={onCancel} />
+                    <div style={{ flex: 1, background: '#F2F2F7', display: 'flex', flexDirection: 'column', borderRadius: '24px 24px 0 0', overflow: 'hidden' }} className="modal-up">
+                        <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 4px' }}><div style={{ width: 40, height: 4, borderRadius: 2, background: '#d0d0d5' }} /></div>
+                        <div style={{ background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid #f0f0f5' }}>
+                            <button onClick={onCancel} className="press" style={{ color: '#00965E', fontSize: 15, width: 64 }}>Annuler</button>
+                            <span style={{ fontSize: 16, fontWeight: 600, color: '#1a1a1a' }}>{step === 1 ? 'Faire un virement' : 'Confirmer'}</span>
+                            <button onClick={() => { setToName(''); setToIban(''); setAmount(''); setComm(''); setStep(1); setShowFav(false); setBic(''); setShowBicVerify(false); setBicError(''); }} className="press" style={{ color: '#aaa', fontSize: 15, width: 64, textAlign: 'right' }}>Effacer</button>
+                        </div>
+                        <div className="flex-1 scroll-ios" style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {step === 1 ? <>
+                                <button onClick={() => setPick(v => !v)} className="press" style={{ background: 'white', borderRadius: 16, padding: '14px 16px', textAlign: 'left', boxShadow: '0 1px 3px rgba(0,0,0,.06)', border: '1px solid #f0f0f5', width: '100%' }}>
+                                    {fromAcc ? <>
+                                        <span style={{ display: 'block', fontSize: 11, color: '#8e8e93', fontWeight: 500, marginBottom: 3 }}>De</span>
+                                        <span style={{ fontSize: 16, color: '#1a1a1a' }}>{fromAcc.label} ···· {fromAcc.suffix}</span>
+                                        <span style={{ fontSize: 12, color: '#8e8e93', marginLeft: 8 }}>{fmt(fromAcc.balance)} EUR</span>
+                                    </> : <span style={{ fontSize: 16, color: '#8e8e93' }}>De</span>}
+                                </button>
+                                {pick && (
+                                    <div style={{ background: 'white', borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.06)', border: '1px solid #f0f0f5' }}>
+                                        {accounts.map(a => (
+                                            <button key={a.id} onClick={() => { setFromId(a.id); setPick(false); }} className="press w-full text-left" style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f5', background: a.id === fromId ? '#f0faf4' : 'white' }}>
+                                                <span style={{ fontSize: 14, fontWeight: 500, color: '#1a1a1a' }}>{a.label} ···· {a.suffix}</span>
+                                                <span style={{ fontSize: 12, color: '#aaa', marginLeft: 8 }}>{fmt(a.balance)} EUR</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 1px 3px rgba(0,0,0,.06)', border: '1px solid #f0f0f5', overflow: 'visible' }}>
+                                    <div style={{ padding: '14px 16px', borderBottom: toIban ? '1px solid #f0f0f5' : 'none' }}>
+                                        {toName ? <div style={{ fontSize: 11, color: '#8e8e93', fontWeight: 500, marginBottom: 3 }}>Vers (bénéficiaire)</div> : null}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <input
+                                                value={toName}
+                                                onChange={e => { setToName(e.target.value); setShowFav(true); }}
+                                                onFocus={() => setShowFav(true)}
+                                                onBlur={() => setTimeout(() => setShowFav(false), 200)}
+                                                placeholder="Vers (bénéficiaire)"
+                                                style={{ flex: 1, fontSize: 16, color: '#1a1a1a', caretColor: '#00965E', background: 'transparent', border: 'none', outline: 'none', padding: 0, minWidth: 0 }}
+                                            />
+                                            {beneficiaries.length > 0 && (
+                                                <button onPointerDown={e => { e.preventDefault(); setShowFav(v => !v); }} style={{ color: showFav ? '#00965E' : '#bbb', fontSize: 18, lineHeight: 1, flexShrink: 0, background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer' }}>★</button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div style={{ padding: '14px 16px', borderTop: '1px solid #f0f0f5' }}>
+                                        {toIban ? <div style={{ fontSize: 11, color: '#8e8e93', fontWeight: 500, marginBottom: 3 }}>IBAN bénéficiaire</div> : null}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <input
+                                                value={toIban}
+                                                onChange={e => {
+                                                    const v = e.target.value.replace(/[^A-Za-z0-9\s]/g, '').toUpperCase();
+                                                    setToIban(v);
+                                                }}
+                                                placeholder="IBAN bénéficiaire (optionnel)"
+                                                style={{ flex: 1, fontSize: 16, color: '#1a1a1a', caretColor: '#00965E', background: 'transparent', border: 'none', outline: 'none', padding: 0, fontFamily: 'monospace', letterSpacing: '.04em' }}
+                                            />
+                                            {ibanLoading && (
+                                                <div style={{ width: 16, height: 16, border: '2px solid #00965E', borderTopColor: 'transparent', borderRadius: '50%', flexShrink: 0, animation: 'spin 0.7s linear infinite' }} />
+                                            )}
+                                            {ibanInfo?.valid && !ibanLoading && (
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2DB34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M20 6L9 17l-5-5"/></svg>
+                                            )}
+                                        </div>
+                                        {/* ── Résultat lookup ── */}
+                                        {ibanInfo?.valid && !ibanLoading && (
+                                            <div style={{ marginTop: 8, background: '#F0FAF4', borderRadius: 10, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#00965E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                                                <div style={{ minWidth: 0 }}>
+                                                    {ibanInfo.bank_name && <p style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', margin: 0 }} className="truncate">{ibanInfo.bank_name}</p>}
+                                                    {ibanInfo.bic && <p style={{ fontSize: 11, color: '#00965E', margin: '1px 0 0', fontFamily: 'monospace', fontWeight: 600 }}>BIC : {ibanInfo.bic}</p>}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {ibanError && !ibanLoading && toIban.replace(/\s/g,'').length >= 14 && (
+                                            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#E53935" strokeWidth="2.4"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                                <span style={{ fontSize: 12, color: '#E53935' }}>{ibanError}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {showFav && filtered.length > 0 && (
+                                    <div style={{ background: 'white', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,.1)', border: '1px solid #f0f0f5' }}>
+                                        {filtered.slice(0, 6).map((f, i) => (
+                                            <button key={i} onPointerDown={() => selectFav(f)} className="press w-full text-left" style={{ padding: '12px 16px', borderBottom: i < Math.min(filtered.length, 6) - 1 ? '1px solid #f0f0f5' : 'none', background: 'white', WebkitTapHighlightColor: 'transparent' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                    <div style={{ width: 34, height: 34, borderRadius: '50%', background: f.own ? '#E8F5E9' : '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                        <span style={{ fontSize: 13, fontWeight: 700, color: f.own ? '#00965E' : '#888' }}>{f.name.charAt(0)}</span>
+                                                    </div>
+                                                    <div style={{ minWidth: 0 }}>
+                                                        <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', margin: 0 }} className="truncate">{f.name.toUpperCase()}</p>
+                                                        {f.iban && <p style={{ fontSize: 11, color: '#aaa', margin: '2px 0 0' }} className="truncate">{f.iban}</p>}
+                                                        {f.own && <span style={{ fontSize: 9, color: 'white', background: '#00965E', padding: '1px 5px', borderRadius: 3, fontWeight: 700 }}>MON COMPTE</span>}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <TransferField lbl="Montant en EUR" val={amount} onChange={setAmount} type="number" />
+
+                                {/* ── Bouton Date d'exécution ── */}
+                                <button onClick={() => setShowExecModal(true)} className="press w-full text-left" style={{ background: 'white', borderRadius: 16, padding: '14px 16px', boxShadow: '0 1px 3px rgba(0,0,0,.06)', border: '1px solid #f0f0f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <div>
+                                        <div style={{ fontSize: 11, color: '#8e8e93', fontWeight: 500, marginBottom: 3 }}>Date d'exécution</div>
+                                        <div style={{ fontSize: 16, color: '#1a1a1a', fontWeight: 500 }}>
+                                            {isInstant ? "Aujourd'hui · Virement instantané" : new Date(date + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                        </div>
+                                    </div>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8e8e93" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                </button>
+                                {showExecModal && <ExecDateModal date={date} setDate={setDate} isInstant={isInstant} setIsInstant={setIsInstant} onClose={() => setShowExecModal(false)} />}
+
+                                <TransferField lbl="Communication (optionnel)" val={comm} onChange={setComm} />
+                            </> : (
+                                <div style={{ background: 'white', borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.06)', border: '1px solid #f0f0f5' }}>
+                                    {[
+                                        ['De', `${fromAcc?.label} ···· ${fromAcc?.suffix}`],
+                                        ['Vers', toName.toUpperCase()],
+                                        ['IBAN', toIban || '—'],
+                                        ['Montant', `${amount} EUR`],
+                                        ['Délai', isInstant ? 'Immédiat' : '2 à 3 jours ouvrables'],
+                                        ['Date', isInstant ? "Aujourd'hui" : new Date(date + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'long', year: 'numeric' })],
+                                        ['Communication', comm || '—'],
+                                    ].map(([k, v]) => (
+                                        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 16px', borderBottom: '1px solid #f0f0f5' }}>
+                                            <span style={{ fontSize: 13, color: '#888', flexShrink: 0 }}>{k}</span>
+                                            <span style={{ fontSize: 13, fontWeight: 600, color: k === 'Délai' && v === 'Immédiat' ? '#00965E' : '#1a1a1a', textAlign: 'right', maxWidth: '60%', wordBreak: 'break-word' }}>{v}</span>
+                                        </div>
+                                    ))}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 16px', background: '#E8F5E9' }}>
+                                        <span style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>Total débité</span>
+                                        <span style={{ fontSize: 20, fontWeight: 900, color: '#00965E' }}>-{amount} EUR</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div style={{ padding: '12px 16px', background: '#F2F2F7', paddingBottom: 'max(24px, env(safe-area-inset-bottom, 24px))' }}>
+                            {step === 1 ? (
+                                <button onClick={() => canNext && setStep(2)} className="press w-full rounded-2xl py-4" style={{ background: canNext ? '#2DB34A' : '#e0e0e5', color: canNext ? 'white' : '#aaa', fontSize: 16, fontWeight: 600, boxShadow: canNext ? '0 4px 12px rgba(45,179,74,.3)' : 'none' }}>
+                                    Suivant
+                                </button>
+                            ) : <>
+                                <button onClick={confirm} disabled={loading} className="press w-full rounded-2xl py-4 flex items-center justify-center gap-2" style={{ background: '#2DB34A', color: 'white', fontSize: 16, fontWeight: 600, boxShadow: '0 4px 12px rgba(45,179,74,.3)' }}>
+                                    {loading
+                                        ? <><div style={{ width: 20, height: 20, border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%' }} className="animate-spin" />En cours...</>
+                                        : <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2"><path d="M20 6L9 17l-5-5" /></svg>Confirmer le virement</>
+                                    }
+                                </button>
+                                <button onClick={() => setStep(1)} className="press w-full py-3 mt-1" style={{ color: '#00965E', fontSize: 14 }}>← Modifier</button>
+                            </>}
+                        </div>
+                    </div>
+                    {false && (
+                        <BicVerifyOverlay
+                            amount={amount}
+                            toName={toName}
+                            bic={bic}
+                            setBic={(v) => { setBic(v); }}
+                            error={''}
+                            onCancel={() => { }}
+                            onConfirm={confirmBic}
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        // Popup vérification BIC (virements ≥ 1000 EUR).
+        // Overlay centered au-dessus du TransferModal — le step 2 reste visible
+        // derrière (semi-transparent) pour respecter la demande "ne pas supprimer
+        // les infos déjà existantes".
+        function BicVerifyOverlay({ amount, toName, bic, setBic, error, onCancel, onConfirm }) {
+            return (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center" style={{ background: 'rgba(0,0,0,.55)', padding: 18, animation: 'fadeIn .18s ease' }}>
+                    <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 380, padding: '22px 22px 18px', boxShadow: '0 16px 40px rgba(0,0,0,.25)', animation: 'popIn .28s cubic-bezier(.34,1.1,.64,1) both' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                            <div style={{ width: 42, height: 42, borderRadius: '50%', background: '#E8F5E9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00965E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 2L3 7v6c0 5 3.8 9.4 9 10 5.2-.6 9-5 9-10V7l-9-5z" />
+                                    <path d="M9 12l2 2 4-4" />
+                                </svg>
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                                <h3 style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a', margin: 0, lineHeight: 1.2 }}>Vérification du virement</h3>
+                                <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>Sécurité renforcée — Réglementation EU</p>
+                            </div>
+                        </div>
+                        <p style={{ fontSize: 13, color: '#3a3a3a', lineHeight: 1.5, margin: '0 0 14px' }}>
+                            Conformément à la directive européenne sur les services de paiement (DSP2), tout virement d'un montant supérieur ou égal à <strong>1 000 EUR</strong> nécessite la validation du code <strong>BIC</strong> (Bank Identifier Code) du compte bénéficiaire.
+                        </p>
+                        <div style={{ background: '#F2F2F7', borderRadius: 12, padding: '10px 14px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ minWidth: 0 }}>
+                                <p style={{ fontSize: 11, color: '#8e8e93', margin: 0, fontWeight: 500 }}>Bénéficiaire</p>
+                                <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', margin: '2px 0 0', textTransform: 'uppercase' }} className="truncate">{toName}</p>
+                            </div>
+                            <span style={{ fontSize: 15, fontWeight: 800, color: '#00965E', flexShrink: 0, marginLeft: 12 }}>{amount} EUR</span>
+                        </div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#8e8e93', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 6 }}>Code BIC du destinataire</label>
+                        <input
+                            type="text"
+                            value={bic}
+                            onChange={e => setBic(e.target.value.toUpperCase())}
+                            placeholder="Ex: GEBABEBB"
+                            maxLength={11}
+                            autoFocus
+                            style={{ width: '100%', fontSize: 16, color: '#1a1a1a', caretColor: '#00965E', background: '#F2F2F7', border: `1.5px solid ${error ? '#E53935' : '#e0e0e5'}`, borderRadius: 12, padding: '12px 14px', outline: 'none', letterSpacing: '.08em', fontFamily: 'monospace', textTransform: 'uppercase' }}
+                        />
+                        {error && (
+                            <p style={{ fontSize: 12, color: '#E53935', margin: '6px 2px 0', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#E53935" strokeWidth="2.4"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                                {error}
+                            </p>
+                        )}
+                        <p style={{ fontSize: 11, color: '#8e8e93', margin: '8px 2px 18px', lineHeight: 1.4 }}>
+                            Le code BIC est généralement composé de 8 ou 11 caractères. Vous le trouverez sur les coordonnées bancaires de votre destinataire.
+                        </p>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <button onClick={onCancel} className="press" style={{ flex: 1, background: '#F2F2F7', color: '#1a1a1a', borderRadius: 12, padding: '12px 0', fontSize: 15, fontWeight: 600, border: 'none' }}>
+                                Annuler
+                            </button>
+                            <button onClick={onConfirm} className="press" style={{ flex: 1.4, background: '#2DB34A', color: 'white', borderRadius: 12, padding: '12px 0', fontSize: 15, fontWeight: 600, border: 'none', boxShadow: '0 4px 12px rgba(45,179,74,.25)' }}>
+                                Valider
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Scanner indisponible : ouvre la caméra arrière (preview ~1.4s),
+        // puis affiche un message d'erreur "Service momentanément indisponible".
+        // Tracks stoppés au démontage. En cas de refus / HTTPS-only / no-camera,
+        // on bascule directement sur le message d'erreur (UX cohérente).
+        function ScannerOverlay({ onClose }) {
+            const videoRef = React.useRef(null);
+            const streamRef = React.useRef(null);
+            const [showError, setShowError] = useState(false);
+            const [streamReady, setStreamReady] = useState(false);
+
+            useEffect(() => {
+                let cancelled = false;
+                let errorTimer = null;
+
+                const stopStream = () => {
+                    if (streamRef.current) {
+                        streamRef.current.getTracks().forEach(t => t.stop());
+                        streamRef.current = null;
+                    }
+                };
+
+                async function start() {
+                    if (!navigator.mediaDevices?.getUserMedia) {
+                        if (!cancelled) setShowError(true);
+                        return;
+                    }
+                    try {
+                        // Tente d'abord facingMode=environment strict (mobile),
+                        // fallback ideal puis any si non dispo (desktop, etc.)
+                        let stream;
+                        try {
+                            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: 'environment' } }, audio: false });
+                        } catch {
+                            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+                        }
+                        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+                        streamRef.current = stream;
+                        if (videoRef.current) {
+                            videoRef.current.srcObject = stream;
+                            try { await videoRef.current.play(); } catch { /* autoplay block tolerée */ }
+                        }
+                        setStreamReady(true);
+                        // Délai court pour donner l'impression d'une vraie tentative
+                        // de scan, puis bascule sur l'erreur.
+                        errorTimer = setTimeout(() => { if (!cancelled) setShowError(true); }, 1400);
+                    } catch (e) {
+                        // Refus permission, navigator non-HTTPS, no camera, etc.
+                        if (!cancelled) setShowError(true);
+                    }
+                }
+                start();
+
+                return () => {
+                    cancelled = true;
+                    if (errorTimer) clearTimeout(errorTimer);
+                    stopStream();
+                };
+            }, []);
+
+            return (
+                <div className="fixed inset-0 z-[120]" style={{ background: '#000' }}>
+                    {/* Video stream caméra arrière (visible avant l'erreur) */}
+                    <video ref={videoRef} playsInline muted autoPlay style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: streamReady && !showError ? 1 : (showError ? 0.4 : 0) }} />
+                    {/* Overlay viseur (cadre de scan, avant erreur) */}
+                    {streamReady && !showError && (
+                        <>
+                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.35)' }} />
+                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 240, height: 240, border: '3px solid white', borderRadius: 16, boxShadow: '0 0 0 9999px rgba(0,0,0,.45)' }}>
+                                <div style={{ position: 'absolute', top: 0, left: 0, width: 36, height: 36, borderTop: '4px solid #2DB34A', borderLeft: '4px solid #2DB34A', borderTopLeftRadius: 16 }} />
+                                <div style={{ position: 'absolute', top: 0, right: 0, width: 36, height: 36, borderTop: '4px solid #2DB34A', borderRight: '4px solid #2DB34A', borderTopRightRadius: 16 }} />
+                                <div style={{ position: 'absolute', bottom: 0, left: 0, width: 36, height: 36, borderBottom: '4px solid #2DB34A', borderLeft: '4px solid #2DB34A', borderBottomLeftRadius: 16 }} />
+                                <div style={{ position: 'absolute', bottom: 0, right: 0, width: 36, height: 36, borderBottom: '4px solid #2DB34A', borderRight: '4px solid #2DB34A', borderBottomRightRadius: 16 }} />
+                            </div>
+                            <p style={{ position: 'absolute', top: 'calc(50% + 145px)', left: 0, right: 0, textAlign: 'center', color: 'white', fontSize: 14, fontWeight: 500, textShadow: '0 1px 4px rgba(0,0,0,.6)' }}>Recherche d'un code à scanner...</p>
+                        </>
+                    )}
+                    {/* Erreur "Service momentanément indisponible" */}
+                    {showError && (
+                        <div className="fixed inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,.55)', padding: 18, animation: 'fadeIn .2s ease', zIndex: 1 }}>
+                            <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 340, padding: '26px 22px 18px', boxShadow: '0 16px 40px rgba(0,0,0,.3)', animation: 'popIn .28s cubic-bezier(.34,1.1,.64,1) both' }}>
+                                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+                                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#FFF4E5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F4A100" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                            <line x1="12" y1="9" x2="12" y2="13" />
+                                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <h3 style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a', margin: '0 0 8px', textAlign: 'center' }}>Service momentanément indisponible</h3>
+                                <p style={{ fontSize: 13, color: '#5a5a5a', lineHeight: 1.5, margin: '0 0 20px', textAlign: 'center' }}>
+                                    Le service de scan n'est pas accessible pour le moment. Veuillez réessayer ultérieurement ou contacter le support si le problème persiste.
+                                </p>
+                                <button onClick={onClose} className="press" style={{ width: '100%', background: '#00965E', color: 'white', borderRadius: 12, padding: '12px 0', fontSize: 15, fontWeight: 600, border: 'none', boxShadow: '0 4px 12px rgba(0,150,94,.25)' }}>
+                                    OK
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {/* Bouton fermeture (toujours dispo, en haut à droite) */}
+                    {!showError && (
+                        <button onClick={onClose} className="press" style={{ position: 'absolute', top: 'max(20px, env(safe-area-inset-top, 20px))', right: 16, width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,.45)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                        </button>
+                    )}
+                </div>
+            );
+        }
+
+        function App() {
+            const [screen, setScreen] = useState('loading');
+            const [transfers, setTransfers] = useState([]);
+            const [balances, setBalances] = useState({});
+            const [selAcc, setSelAcc] = useState(null);
+            const [selTx, setSelTx] = useState(null);
+            const [showXfer, setShowXfer] = useState(false);
+            const [showSuccess, setShowSuccess] = useState(null);
+            const [showScanner, setShowScanner] = useState(false);
+            const go = s => setScreen(s);
+
+            useEffect(() => {
+                serverLoad().then(({ transfers, balances }) => {
+                    setTransfers(transfers);
+                    setBalances(balances);
+                    setScreen('splash');
+                });
+            }, []);
+
+            useEffect(() => {
+                const map = { loading: '#ffffff', splash: '#ffffff', welcome: '#0a0a0a', pin: '#F2F2F7', dashboard: '#F2F2F7', transactions: '#F2F2F7', txDetail: '#F2F2F7' };
+                const bg = map[screen] || '#F2F2F7';
+                document.body.style.background = bg;
+                document.getElementById('root').style.background = bg;
+            }, [screen]);
+
+            const handleTransfer = ({ from_iban, from_id, to_name, to_iban, amount, type, date, comm, bic }) => {
+                const newT = { id: Date.now(), from_iban, to_name, to_iban, amount: parseFloat(amount), type, date, comm, ...(bic ? { bic } : {}), created_at: new Date().toISOString() };
+                const updated = [newT, ...transfers];
+                const newBal = { ...balances, [from_id]: Math.round(((balances[from_id] ?? 0) + parseFloat(amount)) * 100) / 100 };
+                setTransfers(updated);
+                setBalances(newBal);
+                serverSave(updated, newBal);
+                setShowXfer(false);
+                setShowSuccess({ amount: parseFloat(amount), toName: to_name });
+            };
+
+            return (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: '100svh', overflow: 'hidden', background: 'white', maxWidth: 430, margin: '0 auto' }}>
+                    {screen === 'loading' && <div className="fixed inset-0 bg-white flex items-center justify-center"><img src="./logo.svg" width={120} style={{ objectFit: 'contain' }} alt="" /></div>}
+                    {screen === 'splash' && <SplashScreen onDone={() => go('welcome')} />}
+                    {screen === 'welcome' && <WelcomeScreen onConnect={() => go('pin')} onScanner={() => setShowScanner(true)} />}
+                    {screen === 'pin' && <PinScreen onBack={() => go('welcome')} onSuccess={() => go('dashboard')} />}
+                    {screen === 'dashboard' && <Dashboard transfers={transfers} balances={balances} onAccountClick={a => { setSelAcc(a); go('transactions'); }} onTransfer={() => setShowXfer(true)} onScanner={() => setShowScanner(true)} />}
+                    {screen === 'transactions' && selAcc && <TransactionsPage account={selAcc} transfers={transfers} balances={balances} onBack={() => go('dashboard')} onTransfer={() => setShowXfer(true)} onTxClick={t => { setSelTx(t); go('txDetail'); }} />}
+                    {screen === 'txDetail' && selTx && <TransactionDetail tx={selTx} onBack={() => go('transactions')} />}
+                    {showXfer && <TransferModal balances={balances} transfers={transfers} defaultFromId={selAcc?.id || CFG.accounts[0]?.id} onSubmit={handleTransfer} onCancel={() => setShowXfer(false)} />}
+                    {showSuccess && <SuccessOverlay amount={showSuccess.amount} toName={showSuccess.toName} onClose={() => setShowSuccess(null)} />}
+                    {showScanner && <ScannerOverlay onClose={() => setShowScanner(false)} />}
+                </div>
+            );
+        }
+
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
     <script>
@@ -532,5 +1809,5 @@
         })();
     </script>
 </body>
- 
+
 </html>
